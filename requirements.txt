@@ -1,10 +1,28 @@
+# Web 服务
 fastapi
 uvicorn[standard]
-httpx
+python-multipart
+
+# 数据结构与校验
 pydantic
-openai
 python-dotenv
-rank-bm25
+
+# LLM 调用
+openai
+httpx
+
+# 文档解析
 python-docx
 pdfplumber
-python-multipart
+
+# 检索与向量
+rank-bm25
+fastembed
+chromadb
+
+# LangChain 对照实现
+langchain-core
+langchain-openai
+
+# PDF 报告生成
+reportlab
