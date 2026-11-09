@@ -169,222 +169,6 @@ class MatchReport(BaseModel):
 - **禁止**：这一步不写任何打分逻辑
 - **为什么先做**：中文字体是 PDF 环节最容易翻车的点，先花半天解决，别等报告写完才发现是方块
 
-#### S0 实施记录（2026-11-09）
-
-**改动文件**
-- 新增 `app/pdf_font.py`：统一字体注册、缓存和回退。
-- 新增 `app/schemas_match.py`：5 个数据模型，各字段中文注释与 Field(description)。
-- 新增 `tools/verify_font.py`：生成并读回中文 PDF。
-- 修改 `requirements.txt`：按任务书分组，补齐 5 个依赖。
-- 新建 `.venv/`（已被 gitignore 忽略）；本节仅插入记录，不修改 PRD 正文。
-
-**输入了什么**
-- 已阅读全文：`prd/S0_任务书.md`、本 PRD（重点 §三输出契约与 §六红线⑦）。
-- 环境命令：`uv venv .venv`，使用阿里云 PyPI 镜像安装完整 requirements.txt。
-- 字体候选：`C:\Windows\Fonts\msyh.ttc`（subfontIndex=0）→ `simhei.ttf` → `STSong-Light` → RuntimeError。
-- PDF 两行固定文本：简历匹配分析报告；Go 3 年 / 后端 / 匹配度 78 分。
-
-**实现过程**
-1. 只新增两个 app 模块，未修改已有 app 文件；没有实现打分、匹配、抽取逻辑，没有调用 LLM 或读写 .env。
-2. 注册函数使用模块级缓存和锁；实际命中第 1 级 msyh。中文字体族将加粗/斜体映射到常规字体，避免 CID 缺少粗体报错。所有候选失败时明确抛 RuntimeError，绝不回退 Helvetica。
-3. 五个模型严格沿用 PRD 字段及类型，22 个字段全部必填、有中文注释及描述；无计算、解析、渲染代码。
-4. verify_font.py 使用 canvas.setFont 写入一页 PDF，再用 pdfplumber 读回，忽略空白差异比较全文；失败返回 exit 1。
-5. 遇到的坑：首次 PowerShell 默认解码使中文显示乱码，改为 UTF-8 读取后正常；uv 缓存访问遭沙箱拒绝，经执行权限批准后成功；uv 跨盘无法硬链接，自动改为完整复制，安装成功。一次辅助统计命令的引号转义导致 SyntaxError，改为 PowerShell here-string 后重新执行成功。
-6. 完整安装未超过 10 分钟，无需精简集；依赖导入及模型检查通过。另外用 mock 验证黑体、CID、全失败异常三条路径，验证重复调用只注册一次，以及普通字体/CID 的 Paragraph 加粗回退。回退测试是故障注入，实际本机命中字体仍为 msyh。
-
-**实际输出**（以下为对应命令的原样输出；安装部分为完成阶段输出）
-```text
-$ uv venv .venv
-Using CPython 3.11.16
-Creating virtual environment at: .venv
-Activate with: .venv\Scripts\activate
-
-$ uv pip install --python .venv/Scripts/python.exe -r requirements.txt --index-url https://mirrors.aliyun.com/pypi/simple/
-Installed 118 packages in 19.44s
- + aiohappyeyeballs==2.7.1
- + aiohttp==3.14.5
- + aiohttp-retry==2.9.1
- + aiosignal==1.4.0
- + annotated-doc==0.0.5
- + annotated-types==0.8.0
- + anyio==4.16.0
- + attrs==26.1.0
- + bcrypt==5.0.0
- + build==1.6.1
- + certifi==2026.10.23
- + cffi==2.1.1
- + charset-normalizer==3.5.2
- + chromadb==1.5.9
- + click==8.5.1
- + colorama==0.4.6
- + cryptography==50.0.2
- + distro==1.9.0
- + durationpy==0.11
- + fastapi==0.162.2
- + fastembed==0.9.1
- + filelock==4.2.9
- + flatbuffers==25.12.19
- + frozenlist==1.8.0
- + fsspec==2026.9.0
- + googleapis-common-protos==1.76.0
- + grpcio==1.85.1
- + h11==0.16.0
- + hf-xet==1.8.0
- + httpcore==1.0.9
- + httpcore2==2.16.0
- + httptools==0.9.0
- + httpx==0.28.1
- + httpx2==2.16.0
- + huggingface-hub==1.33.0
- + idna==3.20
- + importlib-resources==7.1.0
- + jiter==0.19.0
- + jsonpatch==1.44
- + jsonpointer==3.10
- + jsonschema==4.26.0
- + jsonschema-specifications==2025.9.1
- + kubernetes==37.0.2
- + langchain-core==1.7.6
- + langchain-openai==1.7.4
- + langchain-protocol==0.0.21
- + langsmith==0.14.17
- + loguru==0.7.3
- + lxml==6.1.3
- + markdown-it-py==4.2.0
- + mdurl==0.1.2
- + mmh3==5.3.1
- + multidict==7.2.1
- + numpy==2.4.6
- + oauthlib==4.0.1
- + onnxruntime==1.31.1
- + openai==3.46.0
- + opentelemetry-api==1.45.2
- + opentelemetry-exporter-otlp-common==0.66b2
- + opentelemetry-exporter-otlp-proto-common==1.45.2
- + opentelemetry-exporter-otlp-proto-grpc==1.45.2
- + opentelemetry-proto==1.45.2
- + opentelemetry-sdk==1.45.2
- + opentelemetry-semantic-conventions==0.66b2
- + orjson==3.13.0
- + overrides==7.7.0
- + packaging==26.3
- + pdfminer-six==20260107
- + pdfplumber==0.11.10
- + pillow==13.0.0
- + propcache==0.5.4
- + protobuf==7.36.2
- + py-rust-stemmers==0.1.8
- + pybase64==1.5.1
- + pycparser==3.12
- + pydantic==2.14.3
- + pydantic-core==2.50.4
- + pydantic-settings==2.16.2
- + pygments==2.21.0
- + pypdfium2==5.15.1
- + pypika==0.51.1
- + pyproject-hooks==1.3.3
- + python-dateutil==4.0.0
- + python-docx==1.2.0
- + python-dotenv==1.2.4
- + python-multipart==0.0.33
- + pyyaml==6.0.3
- + rank-bm25==0.2.2
- + referencing==0.37.0
- + regex==2026.11.7
- + reportlab==5.1.0
- + requests==2.34.2
- + requests-oauthlib==2.0.0
- + requests-toolbelt==1.0.0
- + rich==15.0.0
- + rpds-py==2026.9.1
- + shellingham==1.5.4
- + sniffio==1.3.1
- + starlette==1.10.0
- + tenacity==9.2.1
- + tiktoken==0.14.0
- + tokenizers==0.23.3
- + tqdm==4.70.1
- + truststore==0.10.5
- + typer==0.28.0
- + typing-extensions==4.16.0
- + typing-inspection==0.4.5
- + tzdata==2026.6
- + urllib3==2.8.0
- + uuid-utils==0.19.0
- + uvicorn==0.54.0
- + watchfiles==1.3.0
- + websocket-client==1.9.2
- + websockets==17.4
- + win32-setctime==1.2.1
- + xxhash==4.0.2
- + yarl==1.25.1
- + zstandard==0.25.0
-
-$ .venv/Scripts/python.exe -X utf8 tools/verify_font.py
-实际字体: msyh
-字体名: msyh
-PDF: C:\Users\Lenovo\AppData\Local\Temp\font_test.pdf
-写入: 简历匹配分析报告
-Go 3 年 / 后端 / 匹配度 78 分
-读回: 简历匹配分析报告
-Go 3 年 / 后端 / 匹配度 78 分
-PASS (exit 0)
-
-$ .venv/Scripts/python.exe -X utf8 -c "import reportlab, chromadb, fastembed, langchain_openai; print('deps OK')"
-deps OK
-
-$ .venv/Scripts/python.exe -X utf8 -c "from app.schemas_match import MatchScore, ResumeKeyword, ResumeHighlight, Deduction, MatchReport; models = (MatchScore, ResumeKeyword, ResumeHighlight, Deduction, MatchReport); assert all(f.description and f.is_required() for m in models for f in m.model_fields.values()); print('schema OK'); print('5 models; 22 required fields with descriptions')"
-schema OK
-5 models; 22 required fields with descriptions
-```
-
-**结论**
-- 达到 S0 判据：是；中文 PDF 往返、完整依赖导入和模型契约检查通过。
-- 遗留问题：无 S0 阻塞项。S1-S7 尚未实施，停在 S0 等 review。
-
-#### S0 补充：注释完善（2026-11-09）
-
-**改动文件**
-- 仅完善 `app/pdf_font.py`、`tools/verify_font.py` 的注释与 docstring；本节追加于原 S0 实施记录末尾、S1 之前。
-- 未修改其他源码文件，函数签名、输出格式与执行逻辑保持不变。
-
-**输入了什么**
-- 本次用户逐项注释要求及 PRD §六红线⑧。
-- 修改前按实际文件统计：pdf_font.py 为 11/68 = 16.18%，verify_font.py 为 10/61 = 16.39%（上一轮已补过注释，并非最初的 9% / 2%）。
-- 统计口径：`wc -l` 为总行数，`grep -c '^[[:space:]]*#'` 为注释行数，docstring 不计入注释行。
-
-**实现过程**
-1. pdf_font.py 补充默认字体中文方块问题、非 Windows 的 CID 兜底、缓存与并发锁的原因、三种候选的顺序及 TTC 子字体参数、Paragraph 粗体变体映射、禁止静默降级 Helvetica 的原因，以及调用方统一入口说明。
-2. verify_font.py 补充注册成功不代表真正嵌入、兄弟目录导入路径、中英文混排、坐标与行距、extract_text 读回、忽略空白防止误报及失败退出码的原因。
-3. 修改后占比：pdf_font.py 从 16.18% 升至 21.79%（17/78）；verify_font.py 从 16.39% 升至 20.90%（14/67）。
-4. 去除 docstring 后的 AST 与修改前一致；三个公开函数 docstring 覆盖 3/3。重跑原脚本仍 PASS。
-
-**实际输出**（原样）
-```text
-$ wc -l app/pdf_font.py
-78 app/pdf_font.py
-$ grep -c '^[[:space:]]*#' app/pdf_font.py
-17
-$ wc -l tools/verify_font.py
-67 tools/verify_font.py
-$ grep -c '^[[:space:]]*#' tools/verify_font.py
-14
-
-$ .venv/Scripts/python.exe -X utf8 tools/verify_font.py
-实际字体: msyh
-字体名: msyh
-PDF: C:\Users\Lenovo\AppData\Local\Temp\font_test.pdf
-写入: 简历匹配分析报告
-Go 3 年 / 后端 / 匹配度 78 分
-读回: 简历匹配分析报告
-Go 3 年 / 后端 / 匹配度 78 分
-PASS (exit 0)
-```
-
-**结论**
-- 达到判据：是；两文件注释行均 ≥15%，函数 docstring 覆盖率 100%，PDF 验证退出码为 0。
-- 遗留问题：无；本次只完善注释，不推进 S1。
-
 ### S1｜JD 结构化抽取（0.5-1 天）
 
 - **做什么**：新增 `app/job_parser.py`
@@ -485,10 +269,12 @@ PASS (exit 0)
 ④ 语义分必须用 RAG 同一个 embedding 模型（bge-small-zh-v1.5）
 ⑤ 测试集与语料分离：评测用简历不能进 RAG 语料
 ⑥ 每块完成即停，等 review；不许把 S1-S7 塞给 Codex 一次做完
-⑦ **每块完成后，必须把实施记录「续写」到本文对应步骤小节末尾**（不许覆盖、不许新建文件）：
-   - 写在哪个小节：S0 的记录就追加在「五、开发分块 → S0」这一小节**之后**
-   - 必含四段：**改动文件** / **输入了什么** / **实现过程** / **实际输出（原样贴命令输出，不许改写数字）**
+⑦ **每块完成后，实施记录写到 `docs/实施记录/<功能名>/Sn.md`（本地文件，不进 GitHub）**：
+   - **PRD 只保留需求/打分模型/契约/分块定义**，不写实施过程、不写结果、不写价值段
+   - 记录文件四段必填：**改动文件** / **输入了什么** / **实现过程** / **解决了什么（价值）**
+   - 实际输出（命令原样输出）也放在记录文件里，便于复查
    - 若该块没有达到判据，记录里要写「未通过 + 原因 + 下一步」，不许只写做完了
+   - 原因：`docs/` 已被 `.gitignore` 忽略 —— 实施记录属于过程材料，公开仓库只放 PRD 与代码
 
 **⑧ 代码必须写清晰的注释**（用户明确要求，每块都适用）：
 
@@ -502,7 +288,22 @@ PASS (exit 0)
 验收线：新增文件注释行占比 ≥ 15%，且函数 docstring 覆盖率 100%
 ```
 
-**实施记录模板（每块照抄）**：
+**⑨ 每块记录必须写「解决了什么」**（用户明确要求，每块都适用）：
+
+```
+不是复述「做了什么」——做了什么上面已经有了。
+要写的是：这一块消除了哪一类风险、为什么不能省、没有它会怎样。
+
+写法要求：
+· 至少 3 条，每条都要带「不做的后果」
+· 用业务/交付语言，不用技术流水账
+  ✗ 「新增了 pdf_font.py，注册了 4 级回退」
+  ✓ 「消除了 PDF 中文变方块的风险；不解决的话 S7 排完版才发现，整个报告要重做」
+· 如果这一块只是重构/补注释，就写它降低了什么维护风险
+· 禁止空话（如「提升了可维护性」），必须能落到具体后果上
+```
+
+**实施记录模板（每块照抄，写入 `docs/实施记录/<功能名>/Sn.md`，不写进本 PRD）**：
 
 ```markdown
 #### Sn 实施记录（YYYY-MM-DD）
@@ -518,6 +319,11 @@ PASS (exit 0)
 **实现过程**
 1. …（做了什么、为什么这么做）
 2. …（遇到什么坑、怎么绕过的）
+
+**解决了什么**（不是复述做了什么，而是这块消除了哪类风险、没有它会怎样）
+1. …
+2. …
+3. …
 
 **实际输出**（原样，不许改写）
 ```

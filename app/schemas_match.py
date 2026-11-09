@@ -68,3 +68,27 @@ class MatchReport(BaseModel):
     suggestions: list[str] = Field(description="需要补充的内容建议，禁止编造经历")
     # PRD §三：报告元数据。
     meta: dict = Field(description="简历文件名、JD 摘要、模型、成本、耗时等元数据")
+
+
+class JobInfo(BaseModel):
+    """承载 S1 的八个 JD 字段，供抽取与纯代码护栏共同使用。"""
+
+    # S1 §一.2 限定八个字段；拒绝多余字段与非有限数，避免静默接受坏数据。
+    model_config = {"extra": "forbid", "allow_inf_nan": False}
+
+    # 岗位名保留方向信息，不能把它拆进技能列表。
+    title: str | None = Field(description="岗位名称原文，如后端开发工程师；未写为 null")
+    # 公司名只能引用 JD，不能根据行业或产品猜测。
+    company: str | None = Field(description="公司名称；原文未写为 null")
+    # S1 年限规则允许小数；未知用 None，不能让 0 伪装成明确要求。
+    required_years_min: float | None = Field(description="要求年限下限；3-5 年为 3，未写下限为 null，不得填 0")
+    # 单边要求不补全另一端，例如 3 年以上的上限必须为 None。
+    required_years_max: float | None = Field(description="要求年限上限；3-5 年为 5，3 年以上或未写上限为 null")
+    # 保留学历原文，后续模块才能追溯要求依据。
+    education: str | None = Field(description="学历要求原文，如本科及以上；未写为 null")
+    # 只存具体技术，方向词由 SYSTEM_JOB 约束并由 guard_job 兜底。
+    must_have: list[str] = Field(description="必备的具体技术名词；不得含后端、开发等岗位方向词；未写为 []")
+    # 与必备技能分开，防止下游把加分项当作硬性要求。
+    nice_to_have: list[str] = Field(description="优先或加分的具体技术名词；不得含岗位方向词；未写为 []")
+    # 职责保留动作与对象，不能降成失去业务含义的关键词。
+    responsibilities: list[str] = Field(description="岗位职责要点，一条一句；原文未写为 []")
