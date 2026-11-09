@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>简历解析 Agent · 架构图</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #020617; font-family: 'JetBrains Mono', monospace; color: #e2e8f0; padding: 28px; }
+  .header { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: #34d399; animation: pulse 2s infinite; }
+  @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(52,211,153,.7);} 70% { box-shadow: 0 0 0 10px rgba(52,211,153,0);} 100% { box-shadow: 0 0 0 0 rgba(52,211,153,0);} }
+  h1 { font-size: 17px; font-weight: 700; letter-spacing: .3px; }
+  .sub { font-size: 11px; color: #64748b; margin-bottom: 16px; }
+  .canvas { border: 1px solid #1e293b; border-radius: 10px; background: #0b1220; padding: 8px; display: inline-block; }
+  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 16px; }
+  .card { border: 1px solid #1e293b; border-radius: 8px; padding: 12px 14px; background: #0b1220; }
+  .card-header { display: flex; align-items: center; gap: 7px; margin-bottom: 8px; }
+  .card-dot { width: 6px; height: 6px; border-radius: 50%; }
+  .card-dot.cyan { background: #22d3ee; } .card-dot.emerald { background: #34d399; } .card-dot.violet { background: #a78bfa; }
+  .card h3 { font-size: 11px; font-weight: 600; letter-spacing: .4px; color: #cbd5e1; }
+  .card li { font-size: 10px; color: #94a3b8; line-height: 1.85; list-style: none; }
+  .footer { margin-top: 14px; font-size: 9.5px; color: #475569; }
+</style>
+</head>
+<body>
+  <div class="header"><div class="dot"></div><h1>简历解析 Agent · 系统架构</h1></div>
+  <div class="sub">FastAPI · LLM 抽取 · 纯代码护栏 · 降级链 · RAG（BM25 + 向量 + RRF + rerank）· chromadb</div>
+
+  <div class="canvas">
+  <svg width="1180" height="790" viewBox="0 0 1180 790" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+        <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1e293b" stroke-width="0.5"/>
+      </pattern>
+      <marker id="arrow" markerWidth="9" markerHeight="9" refX="8" refY="3.5" orient="auto">
+        <path d="M0,0 L0,7 L8,3.5 z" fill="#475569"/>
+      </marker>
+      <marker id="arrowCyan" markerWidth="9" markerHeight="9" refX="8" refY="3.5" orient="auto">
+        <path d="M0,0 L0,7 L8,3.5 z" fill="#22d3ee"/>
+      </marker>
+      <marker id="arrowViolet" markerWidth="9" markerHeight="9" refX="8" refY="3.5" orient="auto">
+        <path d="M0,0 L0,7 L8,3.5 z" fill="#a78bfa"/>
+      </marker>
+    </defs>
+
+    <rect width="1180" height="790" fill="url(#grid)"/>
+
+    <!-- ===== 连线：先画，压在框下面 ===== -->
+    <path d="M 235 250 L 296 250" stroke="#475569" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+    <path d="M 540 200 L 596 165" stroke="#475569" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+    <path d="M 540 300 L 596 335" stroke="#475569" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+    <path d="M 885 160 L 946 150" stroke="#475569" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+    <path d="M 946 205 L 885 205" stroke="#475569" stroke-width="1.5" stroke-dasharray="4,4" fill="none" marker-end="url(#arrow)"/>
+    <path d="M 885 345 L 946 345" stroke="#a78bfa" stroke-width="1.5" fill="none" marker-end="url(#arrowViolet)"/>
+    <path d="M 885 320 C 912 270, 922 235, 946 215" stroke="#475569" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+    <!-- 文件解析层 → 接口层 -->
+    <path d="M 420 345 L 420 329" stroke="#22d3ee" stroke-width="1.2" stroke-dasharray="4,4" fill="none" marker-end="url(#arrowCyan)"/>
+
+    <!-- ===== 客户端 ===== -->
+    <rect x="60" y="205" width="175" height="90" rx="6" fill="#0f172a"/>
+    <rect x="60" y="205" width="175" height="90" rx="6" fill="rgba(30,41,59,0.5)" stroke="#94a3b8" stroke-width="1.5"/>
+    <text x="147" y="238" text-anchor="middle" font-size="12" fill="#e2e8f0" font-weight="600">客户端</text>
+    <text x="147" y="256" text-anchor="middle" font-size="9" fill="#94a3b8">Swagger / curl</text>
+    <text x="147" y="272" text-anchor="middle" font-size="9" fill="#94a3b8">业务系统集成</text>
+
+    <!-- ===== 接口层 ===== -->
+    <rect x="300" y="175" width="240" height="150" rx="6" fill="#0f172a"/>
+    <rect x="300" y="175" width="240" height="150" rx="6" fill="rgba(6,78,59,0.4)" stroke="#34d399" stroke-width="1.5"/>
+    <text x="420" y="200" text-anchor="middle" font-size="12" fill="#e2e8f0" font-weight="600">FastAPI 接口层</text>
+    <text x="318" y="222" font-size="9" fill="#a7f3d0">POST /resume/upload  ← 多格式入口</text>
+    <text x="318" y="240" font-size="9" fill="#a7f3d0">POST /resume/agent   ← Agent 入口</text>
+    <text x="318" y="258" font-size="9" fill="#a7f3d0">POST /resume/llm     ← 纯抽取</text>
+    <text x="318" y="276" font-size="9" fill="#a7f3d0">POST /resume         ← 直接入库</text>
+    <text x="318" y="294" font-size="9" fill="#a7f3d0">GET  /resume[/{rid}] ← 查询</text>
+    <text x="318" y="312" font-size="8" fill="#64748b">GET / 健康检查 · 共 7 个接口</text>
+
+    <!-- ===== 文件解析层（下移，避开状态码边界） ===== -->
+    <rect x="300" y="348" width="240" height="105" rx="6" fill="#0f172a"/>
+    <rect x="300" y="348" width="240" height="105" rx="6" fill="rgba(8,51,68,0.4)" stroke="#22d3ee" stroke-width="1.5"/>
+    <text x="420" y="371" text-anchor="middle" font-size="12" fill="#e2e8f0" font-weight="600">文件解析层</text>
+    <text x="318" y="392" font-size="9" fill="#a5f3fc">.docx → paragraphs + tables</text>
+    <text x="318" y="409" font-size="9" fill="#a5f3fc">.pdf  → 双栏检测（竖直空白带）</text>
+    <text x="318" y="426" font-size="9" fill="#a5f3fc">.txt / .md → 直读</text>
+    <text x="318" y="443" font-size="8" fill="#64748b">扫描件 → 422（不做 OCR，明确拒绝）</text>
+
+    <!-- ===== Agent 层 ===== -->
+    <rect x="600" y="95" width="285" height="130" rx="6" fill="#0f172a"/>
+    <rect x="600" y="95" width="285" height="130" rx="6" fill="rgba(6,78,59,0.4)" stroke="#34d399" stroke-width="1.5"/>
+    <text x="742" y="118" text-anchor="middle" font-size="12" fill="#e2e8f0" font-weight="600">Agent 层</text>
+    <text x="618" y="140" font-size="9" fill="#a7f3d0">① 抽取：结构化输出 → ResumeInfo</text>
+    <text x="618" y="158" font-size="9" fill="#a7f3d0">② 护栏：4 条纯代码规则</text>
+    <text x="618" y="176" font-size="9" fill="#a7f3d0">③ 预算 / 步数 → 调用前检查</text>
+    <text x="618" y="194" font-size="9" fill="#a7f3d0">④ 成本统计 UsageMeter</text>
+    <text x="618" y="214" font-size="8" fill="#64748b">空壳 · 相对时间 · 招聘要求 · 技能笼统</text>
+
+    <!-- ===== RAG 层 ===== -->
+    <rect x="600" y="285" width="285" height="130" rx="6" fill="#0f172a"/>
+    <rect x="600" y="285" width="285" height="130" rx="6" fill="rgba(6,78,59,0.4)" stroke="#34d399" stroke-width="1.5"/>
+    <text x="742" y="308" text-anchor="middle" font-size="12" fill="#e2e8f0" font-weight="600">RAG 检索链路</text>
+    <text x="618" y="330" font-size="9" fill="#a7f3d0">① BM25（字面匹配）</text>
+    <text x="618" y="348" font-size="9" fill="#a7f3d0">② 向量（bge-small-zh-v1.5）</text>
+    <text x="618" y="366" font-size="9" fill="#a7f3d0">③ RRF 融合（可加权 2:1）</text>
+    <text x="618" y="384" font-size="9" fill="#a7f3d0">④ rerank（可选，+6849ms）</text>
+    <text x="618" y="402" font-size="8" fill="#64748b">引用反查 + 资料外拒答</text>
+
+    <!-- ===== 模型厂商 ===== -->
+    <rect x="950" y="95" width="190" height="125" rx="6" fill="#0f172a"/>
+    <rect x="950" y="95" width="190" height="125" rx="6" fill="rgba(120,53,15,0.3)" stroke="#fbbf24" stroke-width="1.5"/>
+    <text x="1045" y="118" text-anchor="middle" font-size="12" fill="#e2e8f0" font-weight="600">模型厂商</text>
+    <text x="966" y="140" font-size="9" fill="#fde68a">deepseek-chat</text>
+    <text x="966" y="158" font-size="9" fill="#fde68a">（备用厂商 → 降级链）</text>
+    <text x="966" y="180" font-size="8" fill="#64748b">超时 / 鉴权失败</text>
+    <text x="966" y="194" font-size="8" fill="#64748b">→ 自动切下一家</text>
+    <text x="966" y="210" font-size="8" fill="#64748b">单次 ≈ 0.00028 元</text>
+
+    <!-- ===== 向量库 ===== -->
+    <rect x="950" y="285" width="190" height="115" rx="6" fill="#0f172a"/>
+    <rect x="950" y="285" width="190" height="115" rx="6" fill="rgba(76,29,149,0.4)" stroke="#a78bfa" stroke-width="1.5"/>
+    <text x="1045" y="308" text-anchor="middle" font-size="12" fill="#e2e8f0" font-weight="600">向量库 chromadb</text>
+    <text x="966" y="330" font-size="9" fill="#ddd6fe">439 chunk / 26 文件</text>
+    <text x="966" y="348" font-size="9" fill="#ddd6fe">hnsw:space = cosine</text>
+    <text x="966" y="366" font-size="9" fill="#ddd6fe">增量 add · where 过滤</text>
+    <text x="966" y="384" font-size="8" fill="#64748b">等价手写基线 8/8</text>
+
+    <!-- ===== 状态码语义 ===== -->
+    <rect x="60" y="480" width="1080" height="105" rx="12" fill="none" stroke="#fb7185" stroke-width="1.5" stroke-dasharray="4,4"/>
+    <text x="78" y="503" font-size="9" fill="#fda4af" font-weight="600">状态码语义 · Agent 层语言 → HTTP 层语言（两层之间必须翻译）</text>
+    <rect x="80" y="515" width="150" height="52" rx="5" fill="#0f172a"/>
+    <rect x="80" y="515" width="150" height="52" rx="5" fill="rgba(136,19,55,0.35)" stroke="#fb7185" stroke-width="1.2"/>
+    <text x="155" y="535" text-anchor="middle" font-size="10" fill="#ffe4e6">ok → 200</text>
+    <text x="155" y="553" text-anchor="middle" font-size="8" fill="#94a3b8">正常通过</text>
+
+    <rect x="250" y="515" width="150" height="52" rx="5" fill="#0f172a"/>
+    <rect x="250" y="515" width="150" height="52" rx="5" fill="rgba(136,19,55,0.35)" stroke="#fb7185" stroke-width="1.2"/>
+    <text x="325" y="535" text-anchor="middle" font-size="10" fill="#ffe4e6">needs_review → 200</text>
+    <text x="325" y="553" text-anchor="middle" font-size="8" fill="#94a3b8">业务正常，交人复核</text>
+
+    <rect x="420" y="515" width="150" height="52" rx="5" fill="#0f172a"/>
+    <rect x="420" y="515" width="150" height="52" rx="5" fill="rgba(136,19,55,0.35)" stroke="#fb7185" stroke-width="1.2"/>
+    <text x="495" y="535" text-anchor="middle" font-size="10" fill="#ffe4e6">failed → 503</text>
+    <text x="495" y="553" text-anchor="middle" font-size="8" fill="#94a3b8">上游挂了，客户端该重试</text>
+
+    <rect x="590" y="515" width="150" height="52" rx="5" fill="#0f172a"/>
+    <rect x="590" y="515" width="150" height="52" rx="5" fill="rgba(136,19,55,0.35)" stroke="#fb7185" stroke-width="1.2"/>
+    <text x="665" y="535" text-anchor="middle" font-size="10" fill="#ffe4e6">异常 → 500</text>
+    <text x="665" y="553" text-anchor="middle" font-size="8" fill="#94a3b8">代码 bug，重试无用</text>
+
+    <rect x="760" y="515" width="150" height="52" rx="5" fill="#0f172a"/>
+    <rect x="760" y="515" width="150" height="52" rx="5" fill="rgba(136,19,55,0.35)" stroke="#fb7185" stroke-width="1.2"/>
+    <text x="835" y="535" text-anchor="middle" font-size="10" fill="#ffe4e6">不支持格式 → 422</text>
+    <text x="835" y="553" text-anchor="middle" font-size="8" fill="#94a3b8">扫描件 / .exe</text>
+
+    <rect x="930" y="515" width="150" height="52" rx="5" fill="#0f172a"/>
+    <rect x="930" y="515" width="150" height="52" rx="5" fill="rgba(136,19,55,0.35)" stroke="#fb7185" stroke-width="1.2"/>
+    <text x="1005" y="535" text-anchor="middle" font-size="10" fill="#ffe4e6">超 10MB → 413</text>
+    <text x="1005" y="553" text-anchor="middle" font-size="8" fill="#94a3b8">上传上限</text>
+
+    <!-- ===== 三版本 ===== -->
+    <rect x="60" y="615" width="1080" height="110" rx="12" fill="none" stroke="#fbbf24" stroke-width="1.5" stroke-dasharray="8,4"/>
+    <text x="78" y="638" font-size="9" fill="#fde68a" font-weight="600">同一需求的三种实现 · 同一批用例交叉验证：抽取 6/6 一致，status 4/6（差异均来自护栏规则）</text>
+
+    <rect x="80" y="650" width="330" height="60" rx="5" fill="#0f172a"/>
+    <rect x="80" y="650" width="330" height="60" rx="5" fill="rgba(6,78,59,0.4)" stroke="#34d399" stroke-width="1.2"/>
+    <text x="245" y="670" text-anchor="middle" font-size="10" fill="#e2e8f0" font-weight="600">手写 · 488MB 镜像</text>
+    <text x="245" y="687" text-anchor="middle" font-size="8" fill="#a7f3d0">护栏 26 行 · 成本精确到元 · 启动秒级</text>
+    <text x="245" y="701" text-anchor="middle" font-size="8" fill="#64748b">适合内网 / 单机部署</text>
+
+    <rect x="430" y="650" width="330" height="60" rx="5" fill="#0f172a"/>
+    <rect x="430" y="650" width="330" height="60" rx="5" fill="rgba(8,51,68,0.4)" stroke="#22d3ee" stroke-width="1.2"/>
+    <text x="595" y="670" text-anchor="middle" font-size="10" fill="#e2e8f0" font-weight="600">LangChain · +9MB 依赖</text>
+    <text x="595" y="687" text-anchor="middle" font-size="8" fill="#a5f3fc">extract 46 行 → 10 行 · 护栏一行没省</text>
+    <text x="595" y="701" text-anchor="middle" font-size="8" fill="#64748b">整文件 501 行</text>
+
+    <rect x="780" y="650" width="340" height="60" rx="5" fill="#0f172a"/>
+    <rect x="780" y="650" width="340" height="60" rx="5" fill="rgba(120,53,15,0.3)" stroke="#fbbf24" stroke-width="1.2"/>
+    <text x="950" y="670" text-anchor="middle" font-size="10" fill="#e2e8f0" font-weight="600">Dify · 13.07GB / 15 容器</text>
+    <text x="950" y="687" text-anchor="middle" font-size="8" fill="#fde68a">代码节点 63 行 · 改规则秒级 · 启动 4 分钟</text>
+    <text x="950" y="701" text-anchor="middle" font-size="8" fill="#64748b">适合业务方自助调</text>
+
+    <!-- ===== 图例 ===== -->
+    <g transform="translate(60, 760)">
+      <rect x="0" y="-9" width="12" height="10" rx="2" fill="rgba(8,51,68,0.4)" stroke="#22d3ee" stroke-width="1.2"/>
+      <text x="18" y="0" font-size="8" fill="#94a3b8">解析层</text>
+      <rect x="80" y="-9" width="12" height="10" rx="2" fill="rgba(6,78,59,0.4)" stroke="#34d399" stroke-width="1.2"/>
+      <text x="98" y="0" font-size="8" fill="#94a3b8">服务层</text>
+      <rect x="158" y="-9" width="12" height="10" rx="2" fill="rgba(76,29,149,0.4)" stroke="#a78bfa" stroke-width="1.2"/>
+      <text x="176" y="0" font-size="8" fill="#94a3b8">存储</text>
+      <rect x="222" y="-9" width="12" height="10" rx="2" fill="rgba(120,53,15,0.3)" stroke="#fbbf24" stroke-width="1.2"/>
+      <text x="240" y="0" font-size="8" fill="#94a3b8">外部依赖</text>
+      <rect x="316" y="-9" width="12" height="10" rx="2" fill="rgba(136,19,55,0.35)" stroke="#fb7185" stroke-width="1.2"/>
+      <text x="334" y="0" font-size="8" fill="#94a3b8">状态语义</text>
+      <line x1="404" y1="-4" x2="432" y2="-4" stroke="#22d3ee" stroke-width="1.2" stroke-dasharray="4,4"/>
+      <text x="438" y="0" font-size="8" fill="#94a3b8">虚线 = 解析后交给上层</text>
+    </g>
+  </svg>
+  </div>
+
+  <div class="cards">
+    <div class="card">
+      <div class="card-header"><div class="card-dot emerald"></div><h3>护栏：不信模型自觉，信代码规则</h3></div>
+      <ul>
+        <li>• 空壳 / 相对时间 / 招聘要求 / 技能笼统</li>
+        <li>• 判断依据取【原文】，不取模型输出</li>
+        <li>• 预算与步数检查必须在调用之前</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-dot cyan"></div><h3>检索：三档可切换</h3></div>
+      <ul>
+        <li>• 等权 5/8 · 加权 6/8 · rerank 7/8</li>
+        <li>• 单题 5ms / 5ms / 6849ms</li>
+        <li>• 按场景选，没有最优解</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-dot violet"></div><h3>换库：不换语义</h3></div>
+      <ul>
+        <li>• 8 题 top-1 逐题一致 8/8</li>
+        <li>• 424 条上手写 2.54ms、chroma 14.17ms</li>
+        <li>• 买到的是增量 / 过滤 / 落盘</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="footer">fde-learning · 439 chunk / 26 文件 · 所有数字均可在 工具/ 与 文件修改/ 中复现</div>
+</body>
+</html>

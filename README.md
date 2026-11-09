@@ -1,0 +1,269 @@
+# Resume Parsing Agent · 简历解析 Agent
+
+把「简历 → 结构化字段 → 业务护栏 → HTTP 服务 → 基于资料的问答」做成一个**能交付、能验证、能对比**的项目。
+
+同一套需求做了三种实现（手写 / LangChain / Dify），用同一批用例交叉验证。
+
+> 后端出身（Go/Gin + PHP，3 年）转 AI 交付方向，这是补「LLM 应用交付」这一层的实操项目。
+> 关注点不是「让模型更聪明」，而是 **让 AI 的结果可验证、可拦截、可解释成本**。
+
+---
+
+## 能做什么
+
+| # | 能力 | 关键实现 |
+|---|---|---|
+| 1 | **多格式简历解析** | `.docx`（含表格）/ `.pdf`（含双栏）/ `.txt` `.md`；扫描件明确返回 422 而不是空内容 |
+| 2 | **结构化抽取** | `name / years / skills`，提示词约束 + pydantic 校验 |
+| 3 | **业务护栏（纯代码）** | 空壳 / 相对时间 / 招聘要求 / 技能笼统 四条规则，**不依赖模型自觉** |
+| 4 | **容错与止损** | 多厂商降级链、重试、预算与步数护栏（调用**前**检查）、单次成本精确到元 |
+| 5 | **RAG 问答** | 检索 + 引用反查 + 资料外拒答；三档检索（等权 / 加权 RRF / rerank）可切换 |
+| 6 | **换实现不改语义** | 手写 numpy 余弦 ↔ chromadb，8 题 top-1 逐题一致 |
+
+---
+
+## 架构
+
+![架构图](demo/架构图.png)
+
+```mermaid
+flowchart LR
+    A[客户端] --> B{FastAPI 接口层}
+    B -->|POST /resume/upload| C[文件解析层<br/>docx · pdf · txt]
+    B -->|POST /resume/agent| D[Agent 层]
+    C --> D
+    D --> E[抽取<br/>LLM + 结构化输出]
+    E --> F[护栏层<br/>4 条纯代码规则]
+    F -->|needs_review| G[人工复核]
+    F -->|ok| H[结果入库]
+    D -.降级链.-> I[(多厂商模型)]
+    B -->|POST /resume/llm| J[RAG 链路]
+    J --> K[BM25 + 向量 + RRF]
+    K --> L[(向量库<br/>chromadb)]
+    K --> I
+    J --> M[引用反查 + 拒答]
+```
+
+**分层原则**：Agent 层说业务语言（`ok / needs_review / failed`），HTTP 层说协议语言（`200 / 422 / 503 / 500`），两层之间必须翻译。
+
+---
+
+## 快速开始（5 分钟）
+
+```bash
+# 1. 依赖
+python -m venv .venv
+.venv/Scripts/pip install -r requirements.txt          # Windows
+# .venv/bin/pip install -r requirements.txt            # macOS / Linux
+
+# 2. 配置
+cp .env.example .env
+# 编辑 .env，填入自己的 DEEPSEEK_API_KEY
+
+# 3. 启动（⚠️ 必须带 --app-dir，模块是平铺导入的）
+.venv/Scripts/python.exe -m uvicorn Day7_project:app --app-dir app --port 8000
+
+# 4. 打开 Swagger 点着测
+# http://localhost:8000/docs
+```
+
+### 三种调用方式
+
+```bash
+# ① Agent：抽取 + 护栏 + 降级链 + 成本统计
+curl -X POST http://localhost:8000/resume/agent \
+  -H "Content-Type: application/json" \
+  -d '{"text":"赵六，2016 年入行，去年离职，做后端"}'
+# → {"status":"needs_review","reasons":["相对时间:年限需人工确认"],...}
+
+# ② 上传真实文件（docx / pdf，≤10MB）
+curl -X POST http://localhost:8000/resume/upload \
+  -F "file=@tools/test_files/table_resume.docx"
+
+# ③ 扫描件会被明确拒绝
+curl -X POST http://localhost:8000/resume/upload \
+  -F "file=@tools/test_files/scan_resume.pdf"
+# → 422 这份 PDF 没有文本层（很可能是扫描件/图片），需要 OCR 才能解析
+```
+
+---
+
+## 接口清单
+
+| 方法 | 路径 | 说明 | 状态码 |
+|---|---|---|---|
+| GET | `/` | 健康检查 | 200 |
+| POST | `/resume` | 结构化数据直接入库 | 200 |
+| POST | `/resume/llm` | 纯 LLM 抽取（无护栏） | 200 / 422 / 503 |
+| POST | `/resume/agent` | **Agent：抽取 + 护栏 + 降级 + 成本** | 200 / 503 |
+| POST | `/resume/upload` | 上传 docx/pdf/txt/md 解析后走 Agent | 200 / 413 / 422 |
+| GET | `/resume` | 分页列表 `?page=1&size=10` | 200 |
+| GET | `/resume/{rid}` | 按 ID 查询 | 200 / 404 |
+
+### 状态码语义（交付现场最容易被忽略的一条）
+
+| 内部状态 | HTTP | 客户端该做什么 |
+|---|---|---|
+| `ok` | 200 | 正常 |
+| `needs_review` | **200** | 业务正常，交人复核（不是错） |
+| `failed`（上游全挂） | **503** | 该重试 |
+| 未捕获异常 | **500** | 该改代码，重试无用 |
+
+---
+
+## 关键设计
+
+### 1. 护栏为什么写在代码里，不写在提示词里
+
+LLM 的失败是**静默的**：接口 200、pydantic 通过、内容是错的。
+
+```
+{"name":null,"years":null,"skills":[]}   ← 合法 JSON，但什么都没抽到
+```
+
+`check_resume()` 用纯代码做四件事：
+
+| 规则 | 触发条件 | 为什么交人而不是让模型重试 |
+|---|---|---|
+| 空壳 | 三字段全空 | 原文可能就没有信息，重试也抽不出来 |
+| 相对时间 | 含「去年/今年/目前/至今/现在/应届」 | 模型不知道今天几号，硬算必错（实测把「2016 入行、去年离职」算成 9 年） |
+| 招聘要求 | 含「岗位要求/任职要求/招聘」 | 这是岗位描述，不是本人经历 |
+| 技能笼统 | skills 为空但原文写了「做后端」 | 数据不完整，下游需要人补 |
+
+**关键教训**：规则判断依据要取**原文**，不能取**模型输出** ——
+否则同一条输入，模型这次输出 `["后端"]`、下次输出 `[]`，判定就跟着飘。
+
+### 2. 预算与步数护栏必须在调用之前
+
+```python
+if len(steps) >= max_steps: return needs_review(...)
+if cost >= budget_yuan:     return needs_review(...)
+```
+
+### 3. 评测必须先防污染
+
+```
+✗ 评测题写在语料里   → 测的是「抄答案」
+✗ 答案不在语料里     → 测的是运气
+✓ 题目文字不在语料 + 答案在语料 + 标注语料版本
+```
+
+### 4. 路径必须锚定到文件位置
+
+```python
+DEFAULT_PATH = Path(__file__).resolve().parent / ".chroma"   # ✓
+path = "练习/.chroma"                                          # ✗ 换目录就生成两个库
+```
+
+客户内网的启动目录不可控，所有路径都从 `__file__` 派生。
+
+---
+
+## 实测数字
+
+| 指标 | 数值 | 复现方式 |
+|---|---|---|
+| 语料规模 | 439 chunk / 26 文件 | `Day13_rag.load_chunks()` |
+| 检索三档命中 | 等权 5/8 · 加权 RRF 6/8 · rerank **7/8** | `tools/eval_day13.py` |
+| 单题延迟 | 5 ms · 5 ms · **6849 ms** | 同上 |
+| 向量库一致性 | 8 题 top-1 **8/8 相同** | `tools/eval_day18.py` |
+| 向量库延迟 | 手写 2.54~3.14 ms vs chroma 14.17~16.70 ms | 两次实测 |
+| 单次抽取成本 | **0.00028 元** | `UsageMeter` |
+| Docker 镜像 | **488 MB**（非 root、0 个真 key） | `docker images` |
+| 接口用例 | 7/7 通过（含扫描件 422 / 11MB 413） | `tools/verify_day15.py` |
+| 三版本行为一致 | status 4/6、抽取 6/6 | 见下方「三种实现」 |
+
+> **关于「换库更快」**：424 个 chunk 上 chromadb 比手写全量余弦**慢 5 倍**。
+> 换库买到的是增量 add、metadata 过滤、向量落盘 —— 不是当前规模的性能。
+
+---
+
+## 三种实现对照
+
+| 项 | 手写 | LangChain | Dify |
+|---|---|---|---|
+| 护栏 | `check_resume()` 26 行 | 复用同一份 | 代码节点 63 行 |
+| 部署体积 | **488 MB** | 488 MB + 9 MB | **13.07 GB / 15 容器** |
+| 启动 | 秒级 | 秒级 | 4 分 05 秒（重启 40 秒） |
+| 改一条规则 | 改代码重跑 | 改代码重跑 | **改节点秒级生效** |
+| 成本统计 | 精确到元 | 需挂 callback | 面板不显示 |
+| 适用 | 内网、规则复杂、要进 git | 多模型多数据源 | 业务方自助调 |
+
+**复刻的副产品**：用 Dify 重写一遍时，发现手写版「招聘要求」拦截条件多写了一个 `is_student`，
+导致纯招聘广告被放行 —— 换一种实现复刻，本身就是一次代码 review。
+
+---
+
+## 目录结构
+
+```
+resume-agent/
+├─ app/                          # 业务代码
+│  ├─ Day7_project.py            # FastAPI 接口层（7 个接口）
+│  ├─ Day11_agent.py             # Agent + 4 条护栏 + 降级链
+│  ├─ Day13_rag.py               # RAG：BM25 / 向量 / RRF / rerank
+│  ├─ Day15_file_parser.py       # Word/PDF 解析（表格 + 双栏 + 扫描件）
+│  ├─ Day17_lc_extract.py        # LangChain 版抽取
+│  ├─ Day18_chroma_rag.py        # chromadb 版检索
+│  ├─ Day9_fallback.py           # 多厂商降级 + 成本统计
+│  ├─ Day8_n3_structured.py      # 结构化输出 schema
+│  └─ prompts.py                 # 提示词（SYSTEM_RESUME）
+├─ tools/                        # 评测与验证
+│  ├─ eval_day13.py              # 8 题 × 三档检索
+│  ├─ eval_day18.py              # 8 题双跑，比 top-1
+│  ├─ verify_day15.py            # 11 条交付验证
+│  ├─ make_test_files.py         # 生成测试 docx/pdf
+│  └─ test_files/                # 4 份测试简历
+├─ demo/                         # 演示材料
+│  ├─ 架构图.png / .html
+│  └─ 演示脚本.md                # 3 分钟逐句讲稿
+├─ .env.example
+├─ requirements.txt
+└─ Dockerfile                    # 488MB，非 root，无密钥
+```
+
+> 文件名的 `DayN_` 前缀保留了学习路径的时间顺序，每个 Day 对应一项能力。
+
+---
+
+## Docker
+
+```bash
+docker build -t resume-ai:latest .
+docker run -p 8000:8000 --env-file .env resume-ai:latest
+```
+
+镜像 488 MB，非 root 用户运行，`.dockerignore` 排除 `.env`（扫过：0 个真实密钥）。
+
+---
+
+## 限制与未做
+
+| 项 | 说明 |
+|---|---|
+| 无 OCR | 扫描件直接 422 拒绝 |
+| 无流式输出 | 全部同步返回 |
+| 无鉴权 | 单机 demo，未接 JWT / API Key |
+| 存储是内存 | 重启丢数据，没接数据库 |
+| Dify 版无降级链 | 平台能力，本次未验证 |
+| 招聘要求规则的旧版本 bug | **本仓库已修复**（旧条件多了 `is_student`，纯招聘广告会被放行）；修复原因见 `app/Day11_agent.py` 规则 3 注释 |
+
+---
+
+## 规划中
+
+| 功能 | 依赖 | 状态 |
+|---|---|---|
+| ① 简历关键字解析 | 已有 | ✅ |
+| ② 对照 JD 给简历打分（分项 + 证据可回溯） | 新增 JD 抽取 + 匹配引擎 | ⬜ |
+| ③ 对照 JD 生成简历修改意见（禁止编造事实） | ② 的差异项 | ⬜ |
+| ④ 对照 JD + 简历生成面试问答 | ② 的差异项 | ⬜ |
+
+统一抽象：JD 抽取与简历抽取复用同一套护栏与结构化输出；
+匹配分数 = 规则项 + 语义项 + LLM 复核，**每一分都要能追溯到「简历哪句、JD 哪句」**。
+
+---
+
+## 许可
+
+个人学习项目，可自由参考。

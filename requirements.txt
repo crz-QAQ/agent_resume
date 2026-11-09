@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+httpx
+pydantic
+openai
+python-dotenv
+rank-bm25
+python-docx
+pdfplumber
+python-multipart
