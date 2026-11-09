@@ -14,10 +14,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "练习"))
 
 import chromadb  # noqa: E402
 from chromadb.errors import NotFoundError  # noqa: E402
-from eval_day13 import CASES  # noqa: E402
+from eval_retrieval import CASES  # noqa: E402
 
-import Day13_rag as R  # noqa: E402
-import Day18_chroma_rag as M  # noqa: E402
+import rag as R  # noqa: E402
+import vector_store as M  # noqa: E402
 
 
 def _prepare_collection(chunks: list[R.Chunk]) -> M.Collection:

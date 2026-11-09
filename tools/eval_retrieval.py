@@ -1,6 +1,6 @@
 """Day 13 评测脚本：8 题 × 3 种检索方式，产出可直接贴简历的对比表。
 
-跑法：cd 练习 && HF_ENDPOINT=https://hf-mirror.com ../.venv/Scripts/python.exe ../工具/eval_day13.py
+跑法：cd 练习 && HF_ENDPOINT=https://hf-mirror.com ../.venv/Scripts/python.exe ../工具/eval_retrieval.py
 """
 
 import os
@@ -14,7 +14,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path.cwd()))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "练习"))
 
-import Day13_rag as R  # noqa: E402
+import rag as R  # noqa: E402
 
 # (问题, 正确答案可能出现的文件前缀列表, 期望关键词)
 CASES = [

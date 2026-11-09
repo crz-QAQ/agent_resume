@@ -61,7 +61,7 @@ cp .env.example .env
 # 编辑 .env，填入自己的 DEEPSEEK_API_KEY
 
 # 3. 启动（⚠️ 必须带 --app-dir，模块是平铺导入的）
-.venv/Scripts/python.exe -m uvicorn Day7_project:app --app-dir app --port 8000
+.venv/Scripts/python.exe -m uvicorn api:app --app-dir app --port 8000
 
 # 4. 打开 Swagger 点着测
 # http://localhost:8000/docs
@@ -163,15 +163,20 @@ path = "练习/.chroma"                                          # ✗ 换目录
 
 | 指标 | 数值 | 复现方式 |
 |---|---|---|
-| 语料规模 | 439 chunk / 26 文件 | `Day13_rag.load_chunks()` |
-| 检索三档命中 | 等权 5/8 · 加权 RRF 6/8 · rerank **7/8** | `tools/eval_day13.py` |
+| 语料规模 | 430 chunk / 25 文件（本地语料，未进仓库） | `rag.load_chunks()` |
+| 检索三档命中 | 等权 5/8 · 加权 RRF 6/8 · rerank **7/8** | `tools/eval_retrieval.py` |
 | 单题延迟 | 5 ms · 5 ms · **6849 ms** | 同上 |
-| 向量库一致性 | 8 题 top-1 **8/8 相同** | `tools/eval_day18.py` |
+| 向量库一致性 | 8 题 top-1 **8/8 相同** | `tools/eval_vector_store.py` |
 | 向量库延迟 | 手写 2.54~3.14 ms vs chroma 14.17~16.70 ms | 两次实测 |
 | 单次抽取成本 | **0.00028 元** | `UsageMeter` |
 | Docker 镜像 | **488 MB**（非 root、0 个真 key） | `docker images` |
-| 接口用例 | 7/7 通过（含扫描件 422 / 11MB 413） | `tools/verify_day15.py` |
+| 接口用例 | 7/7 通过（含扫描件 422 / 11MB 413） | `tools/verify_delivery.py` |
 | 三版本行为一致 | status 4/6、抽取 6/6 | 见下方「三种实现」 |
+
+> **关于语料**：检索命中率与延迟在原始学习语料（439 chunk / 26 文件）上实测；
+> 本仓库随附的本地语料为 430 chunk / 25 文件，复现时命中率可能有 ±1 题偏差。
+> 语料本身是学习文档，未随仓库分发（`.gitignore` 里的 `docs/`），这是刻意的：
+> **评测要能复现，但语料不该进代码仓库**。
 
 > **关于「换库更快」**：424 个 chunk 上 chromadb 比手写全量余弦**慢 5 倍**。
 > 换库买到的是增量 add、metadata 过滤、向量落盘 —— 不是当前规模的性能。
@@ -199,19 +204,25 @@ path = "练习/.chroma"                                          # ✗ 换目录
 ```
 resume-agent/
 ├─ app/                          # 业务代码
-│  ├─ Day7_project.py            # FastAPI 接口层（7 个接口）
-│  ├─ Day11_agent.py             # Agent + 4 条护栏 + 降级链
-│  ├─ Day13_rag.py               # RAG：BM25 / 向量 / RRF / rerank
-│  ├─ Day15_file_parser.py       # Word/PDF 解析（表格 + 双栏 + 扫描件）
-│  ├─ Day17_lc_extract.py        # LangChain 版抽取
-│  ├─ Day18_chroma_rag.py        # chromadb 版检索
-│  ├─ Day9_fallback.py           # 多厂商降级 + 成本统计
-│  ├─ Day8_n3_structured.py      # 结构化输出 schema
-│  └─ prompts.py                 # 提示词（SYSTEM_RESUME）
+│  ├─ api.py                     # FastAPI 接口层（7 个接口）
+│  ├─ agent.py                   # Agent：抽取 → 护栏 → 修复 → 结果
+│  ├─ schemas.py                 # 结构化输出 schema（ResumeInfo / AgentResult）
+│  ├─ prompts.py                 # 提示词（SYSTEM_RESUME 等）
+│  ├─ providers.py               # 多厂商定义 + 成本统计（UsageMeter）
+│  ├─ fallback.py                # 异步调用 + 降级链
+│  ├─ resilience.py              # 超时控制 + 指数退避
+│  ├─ file_parser.py             # Word/PDF 解析（表格 + 双栏 + 扫描件）
+│  ├─ rag.py                     # RAG：BM25 / 向量 / RRF / rerank / 拒答
+│  ├─ vector_store.py            # chromadb 版检索（等价手写基线）
+│  ├─ langchain_extract.py       # LangChain 版抽取（对照用）
+│  ├─ langchain_agent.py         # LangChain 版 fallback + repair（对照用）
+│  ├─ check_agent.py             # 6 条用例自检
+│  └─ check_vector_store.py      # 3 条断言自检
 ├─ tools/                        # 评测与验证
-│  ├─ eval_day13.py              # 8 题 × 三档检索
-│  ├─ eval_day18.py              # 8 题双跑，比 top-1
-│  ├─ verify_day15.py            # 11 条交付验证
+│  ├─ bootstrap.py               # 工具脚本的导入引导
+│  ├─ eval_retrieval.py          # 8 题 × 三档检索
+│  ├─ eval_vector_store.py       # 8 题双跑，比 top-1
+│  ├─ verify_delivery.py         # 11 条交付验证
 │  ├─ make_test_files.py         # 生成测试 docx/pdf
 │  └─ test_files/                # 4 份测试简历
 ├─ demo/                         # 演示材料
@@ -221,8 +232,6 @@ resume-agent/
 ├─ requirements.txt
 └─ Dockerfile                    # 488MB，非 root，无密钥
 ```
-
-> 文件名的 `DayN_` 前缀保留了学习路径的时间顺序，每个 Day 对应一项能力。
 
 ---
 
@@ -246,7 +255,7 @@ docker run -p 8000:8000 --env-file .env resume-ai:latest
 | 无鉴权 | 单机 demo，未接 JWT / API Key |
 | 存储是内存 | 重启丢数据，没接数据库 |
 | Dify 版无降级链 | 平台能力，本次未验证 |
-| 招聘要求规则的旧版本 bug | **本仓库已修复**（旧条件多了 `is_student`，纯招聘广告会被放行）；修复原因见 `app/Day11_agent.py` 规则 3 注释 |
+| 招聘要求规则的旧版本 bug | **本仓库已修复**（旧条件多了 `is_student`，纯招聘广告会被放行）；修复原因见 `app/agent.py` 规则 3 注释 |
 
 ---
 

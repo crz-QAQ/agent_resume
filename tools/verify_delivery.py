@@ -1,7 +1,7 @@
 """教练验收 Day15：文件解析 7 条（Docker 那条除外，daemon 未起）。
 
 跑法（项目根目录）：
-  .venv/Scripts/python.exe D:/HermesDoc/tmp/verify_day15.py
+  .venv/Scripts/python.exe D:/HermesDoc/tmp/verify_delivery.py
 """
 
 import io
@@ -11,7 +11,7 @@ from pathlib import Path
 ROOT = Path(r"D:\pycharm_projects\fde-learning")
 sys.path.insert(0, str(ROOT / "练习"))
 
-from Day15_file_parser import (  # noqa: E402
+from file_parser import (  # noqa: E402
     ScannedPdfError,
     UnsupportedFormatError,
     extract_text,
@@ -66,11 +66,11 @@ except Exception as exc:  # noqa: BLE001
 
 # ⑥ HTTP 层：422 / 413 / 200
 from fastapi.testclient import TestClient  # noqa: E402
-import Day7_project  # noqa: E402
+import api  # noqa: E402
 
 # 打桩掉 LLM，只验文件层与状态码
-from Day11_agent import AgentResult, StepLog  # noqa: E402
-from Day8_n3_structured import ResumeInfo  # noqa: E402
+from agent import AgentResult, StepLog  # noqa: E402
+from schemas import ResumeInfo  # noqa: E402
 
 
 async def fake_agent(text):
@@ -83,8 +83,8 @@ async def fake_agent(text):
     )
 
 
-Day7_project.parse_resume_agent = fake_agent
-client = TestClient(Day7_project.app)
+api.parse_resume_agent = fake_agent
+client = TestClient(api.app)
 
 r = client.post("/resume/upload", files={"file": ("a.exe", b"MZ")})
 check("⑥a .exe → 422", r.status_code == 422, f"code={r.status_code}")

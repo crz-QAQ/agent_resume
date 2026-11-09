@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import sys
 
-import Day13_rag
-from Day13_rag import Chunk
-from Day18_chroma_rag import (
+import rag
+from rag import Chunk
+from vector_store import (
     add_one_chunk,
     build_collection,
     query_chunks,
@@ -15,7 +15,7 @@ from Day18_chroma_rag import (
 
 
 QUESTION = "Day 9 的降级顺序是什么？"
-SOURCE_PREFIX = "教材/Day9"
+SOURCE_PREFIX = "docs/教材"
 
 
 def main() -> None:
@@ -47,14 +47,14 @@ def main() -> None:
 
         added_count = add_one_chunk(
             Chunk(
-                source="练习/Day18_check_n2.py",
+                source="练习/check_vector_store.py",
                 heading="N3 增量写入检查",
                 text="用于验证 add_one_chunk 后 count 为 425 的临时条目。",
             )
         )
         assert added_count == 425, f"增量写入后 count 不是 425：{added_count}"
 
-        restored_count = build_collection(Day13_rag.load_chunks()).count()
+        restored_count = build_collection(rag.load_chunks()).count()
         assert restored_count == 424, f"重建后 count 未恢复到 424：{restored_count}"
 
         latency_ms = query_latency(QUESTION)

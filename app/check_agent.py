@@ -1,11 +1,11 @@
 """Day 11 N3 验收：状态判定到底有没有真的拦住。
 
 在 PyCharm 里用法（最简单）：
-    打开本文件 → 右键 → Run 'Day11_n3_check'
+    打开本文件 → 右键 → Run 'check_agent'
 
 为什么用右键 Run 最省事：
     PyCharm 会自动把「本文件所在目录」加入 sys.path ✓
-    → 同目录的 Day11_agent / prompts / Day8_n3_structured 都能直接 import ✓
+    → 同目录的 agent / prompts / schemas 都能直接 import ✓
     → 不用管工作目录、不用配 PYTHONPATH ✓
 
 会真实调用模型 4 次，成本约 0.0025 元。
@@ -13,7 +13,7 @@
 
 import asyncio
 
-from Day11_agent import parse_resume_agent
+from agent import parse_resume_agent
 
 # (说明, 输入, 期望 status)
 CASES = [

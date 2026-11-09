@@ -18,9 +18,9 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnableLambda
 from langchain_openai import ChatOpenAI
 
-from Day11_agent import check_resume
-from Day8_n3_structured import ResumeInfo
-from Day9_fallback import UsageMeter
+from agent import check_resume
+from schemas import ResumeInfo
+from providers import UsageMeter
 from prompts import SYSTEM_RESUME
 
 
@@ -175,7 +175,7 @@ def run_real_model_comparison() -> int:
     if FAKE_MODEL:
         raise RuntimeError("N3 对照必须设置 FAKE_MODEL=false")
 
-    # 用例文字和手写期望状态原样取自 Day11_n3_check.py。这里只把期望值
+    # 用例文字和手写期望状态原样取自 check_agent.py。这里只把期望值
     # 当常量使用，绝不调用 parse_resume_agent，以免为了对照重复花钱。
     cases = [
         ("①", "张三，3 年后端经验，会 Go 和 PHP", "ok"),
@@ -197,7 +197,7 @@ def run_real_model_comparison() -> int:
             lc_status = "failed"
             reason = "extract 未触发 tool_call"
         else:
-            # 这里复用 Day11 的 check_resume，而不是在 LC 文件里重写一套。
+            # 这里复用 agent 模块的 check_resume，而不是在 LC 文件里重写一套。
             # “是否需要人工复核”是业务护栏，不是 LangChain 的解析职责；
             # 手写版和 LC 版应共享同一事实来源，否则两份规则一旦修改不同步，
             # 对照结果就会失去意义，而且面试时也无法证明两种实现行为一致。

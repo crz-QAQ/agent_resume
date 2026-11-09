@@ -7,8 +7,8 @@ from unittest.mock import patch
 
 from pydantic import BaseModel, Field, ValidationError
 
-from Day8_n3_structured import ResumeInfo
-from Day9_async_fallback import call_with_fallback_async
+from schemas import ResumeInfo
+from fallback import call_with_fallback_async
 from prompts import PROMPT_VERSION, SYSTEM_RESUME
 
 

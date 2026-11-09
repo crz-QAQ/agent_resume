@@ -20,10 +20,10 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnableLambda
 from langchain_openai import ChatOpenAI
 
-from Day8_n3_structured import ResumeInfo
-from Day9_fallback import PROVIDERS, UsageMeter, _provider_key
-# repair 触发词来自 Day11_agent 模块级常量，改关键词只改那一处。
-from Day11_agent import (
+from schemas import ResumeInfo
+from providers import PROVIDERS, UsageMeter, _provider_key
+# repair 触发词来自 agent 模块级常量，改关键词只改那一处。
+from agent import (
     AgentResult,
     StepLog,
     check_resume,
@@ -436,7 +436,7 @@ def _check_total_cost(total_cost_yuan: float) -> None:
 
 
 def main() -> int:
-    print("Day17B LangChain fallback + repair（BN1）")
+    print("LangChain fallback + repair 演示")
     model_kind = "假模型" if FAKE_MODEL else "真模型"
     print(f"当前模型：{model_kind}（FAKE_MODEL={FAKE_MODEL}）")
     print(f"厂商链：{[str(item['name']) for item in PROVIDERS]}")

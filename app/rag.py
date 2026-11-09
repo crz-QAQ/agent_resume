@@ -36,11 +36,11 @@ from typing import Iterable
 from pydantic import BaseModel
 from rank_bm25 import BM25Okapi
 
-from Day9_async_fallback import call_with_fallback_async
+from fallback import call_with_fallback_async
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-CORPUS_DIRECTORIES = ("教材", "任务", "练习")
+CORPUS_DIRECTORIES = ("docs/教材", "docs/任务书")
 
 # 分块采用“正文最多 420 字符 + 相邻块最多 80 字符重叠”的约束，
 # 从而保证拼上重叠后的单个 chunk 仍不超过 500 字符。
@@ -98,7 +98,7 @@ class RagAnswer(BaseModel):
     """经过本地校验后的 RAG 回答；citations 不直接信任模型输出。"""
 
     answer: str
-    # 形如 "教材/Day1-10复习总结.md#7 个坑"，只由真实 Chunk 反查生成。
+    # 形如 "docs/教材/xxx.md#章节标题"，只由真实 Chunk 反查生成，模型没有编造引用的机会。
     citations: list[str]
     # 本次请求内采用的资料片段编号，从 1 开始，与 prompt 中的 [n] 对应。
     used_chunks: list[int]
@@ -106,7 +106,6 @@ class RagAnswer(BaseModel):
     refused: bool
 
 
-# 排除包含验收问题和答案的 Day13 任务书，避免测试题直接命中任务书文本。
 # 排除「写了评测题 / 写了评测结论」的文档，避免 RAG 检索到自己的考题和答案（自引用污染）
 # 新增复盘、评测类文档时，必须同步加进这里，否则命中率会虚高
 _EXCLUDED_FILES = {
@@ -656,7 +655,7 @@ async def ask(question: str, k: int = 5) -> RagAnswer:
 async def _run_rag_questions(questions: Iterable[str]) -> None:
     """顺序执行问题，避免并发请求导致日志和厂商回退过程交错。"""
     for question in questions:
-        # k 必须跟评测脚本保持一致（eval_day13.py 用 k=5），
+        # k 必须跟评测脚本保持一致（eval_retrieval.py 用 k=5），
         # 否则「评测命中」和「实际能答」是两套标准，评测结果不代表线上效果
         answer = await ask(question, k=5)
         # 不再截断：截断会让人误判「答案被切断 = 回答失败」
@@ -743,10 +742,10 @@ def main() -> None:
     )
     if str(PROJECT_ROOT) not in sys.path:
         sys.path.insert(0, str(PROJECT_ROOT))
-    from 工具.eval_day13 import CASES
+    from 工具.eval_retrieval import CASES
 
     # ⚠️ 整条流程只能有一个事件循环。
-    # 原因：Day9 的 AsyncOpenAI 是「每次调用新建一个客户端」，
+    # 原因：provider 层的 AsyncOpenAI 是「每次调用新建一个客户端」，
     # 如果前后调用两次 asyncio.run()，第 1 个循环里创建的客户端
     # 会在循环关闭之后才被回收，回收时调用 aclose() 就会抛
     # RuntimeError: Event loop is closed（Task exception was never retrieved）。

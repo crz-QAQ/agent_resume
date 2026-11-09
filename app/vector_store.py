@@ -13,8 +13,8 @@ import numpy as np
 from chromadb.api.models.Collection import Collection
 from chromadb.config import Settings
 
-import Day13_rag
-from Day13_rag import Chunk
+import rag
+from rag import Chunk
 
 
 COLLECTION_METADATA = {"hnsw:space": "cosine"}
@@ -96,7 +96,7 @@ def build_collection(
     # 完全相同的数据已落库时跳过写入，避免连续写入与 Chroma 后台
     # compaction 产生竞态；但仍要检查残留 ID，不能在这里直接返回。
     if not _collection_matches(collection, ids, metadatas, documents):
-        _model, embeddings = Day13_rag.build_vector_index(chunk_list)
+        _model, embeddings = rag.build_vector_index(chunk_list)
         normalized_embeddings = _normalize_rows(embeddings)
         collection.upsert(
             ids=ids,
@@ -123,10 +123,10 @@ def query_chunks(
     if k <= 0:
         return []
 
-    if Day13_rag._vector_model is None:
-        chunks = Day13_rag.load_chunks()
-        Day13_rag._vector_model, _ = Day13_rag.build_vector_index(chunks)
-    vector_model = Day13_rag._vector_model
+    if rag._vector_model is None:
+        chunks = rag.load_chunks()
+        rag._vector_model, _ = rag.build_vector_index(chunks)
+    vector_model = rag._vector_model
 
     question_embedding = np.asarray(
         next(iter(vector_model.embed([question]))),
@@ -196,10 +196,10 @@ def add_one_chunk(chunk: Chunk) -> int:
     )
     chunk_id = f"c{collection.count():04d}"
 
-    if Day13_rag._vector_model is None:
-        chunks = Day13_rag.load_chunks()
-        Day13_rag._vector_model, _ = Day13_rag.build_vector_index(chunks)
-    vector_model = Day13_rag._vector_model
+    if rag._vector_model is None:
+        chunks = rag.load_chunks()
+        rag._vector_model, _ = rag.build_vector_index(chunks)
+    vector_model = rag._vector_model
 
     document = f"{chunk.heading}\n{chunk.text}"
     embedding = np.asarray(
@@ -238,7 +238,7 @@ def main() -> None:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
 
-    chunks = Day13_rag.load_chunks()
+    chunks = rag.load_chunks()
     chunk_count = len(chunks)
     print(f"load_chunks() = {chunk_count}")
 

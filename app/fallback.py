@@ -13,11 +13,11 @@ from dotenv import load_dotenv
 from openai import AsyncOpenAI
 
 if __package__:
-    from .Day9_fallback import PROVIDERS, UsageMeter, _provider_key
-    from .Day9_resilience import _retry_after, is_retryable
+    from .providers import PROVIDERS, UsageMeter, _provider_key
+    from .resilience import _retry_after, is_retryable
 else:
-    from Day9_fallback import PROVIDERS, UsageMeter, _provider_key
-    from Day9_resilience import _retry_after, is_retryable
+    from providers import PROVIDERS, UsageMeter, _provider_key
+    from resilience import _retry_after, is_retryable
 
 
 AsyncClientFactory = Callable[[dict[str, Any], float], Any]

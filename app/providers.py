@@ -15,9 +15,9 @@ from dotenv import load_dotenv
 from openai import OpenAI
 
 if __package__:
-    from .Day9_resilience import call_with_backoff
+    from .resilience import call_with_backoff
 else:
-    from Day9_resilience import call_with_backoff
+    from resilience import call_with_backoff
 
 
 PROVIDERS = [

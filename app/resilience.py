@@ -1,4 +1,4 @@
-"""Day 9: explicit timeout handling and bounded exponential backoff."""
+"""explicit timeout handling and bounded exponential backoff."""
 
 import os
 import random
