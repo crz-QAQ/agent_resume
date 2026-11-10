@@ -1,8 +1,8 @@
-"""按 S4 对岗位职责与简历原句做本地向量匹配，返回分数和逐项证据。"""
+"""按 PRD §2.3 v1.1 用余弦召回、重排精判返回语义分和逐项证据。"""
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
 import re
@@ -16,13 +16,19 @@ if _APP_DIR not in sys.path:
     sys.path.insert(0, _APP_DIR)
 
 # 先导入 rag，让其在 FastEmbed 导入前设置项目约定的模型镜像地址。
-from app.rag import EMBED_MODEL_NAME
+from app.rag import EMBED_MODEL_NAME, _get_reranker
 from app.schemas_match import JobInfo
 from fastembed import TextEmbedding
 
 
-# PRD §2.3：低于 0.6 的职责视为明显不相关，不计入平均。
-COVER_THRESHOLD = 0.6
+# PRD §2.3 v1.1：每条职责只重排余弦 top-3 候选，限制精判成本。
+RERANK_TOP_K = 3
+# PRD §2.3 v1.1 实测表：真相关 +5.53，无关 -0.86/-1.10/-1.70，0 为天然分界。
+RERANK_THRESHOLD = 0.0
+# PRD §2.3 v1.1：仅重排不可用时回退旧余弦阈值，并明确标记待复核。
+LEGACY_COS_THRESHOLD = 0.6
+# 固定降级文案，供调用方和报告审计，不能仅打印日志后返回 ok。
+RERANK_FALLBACK_REASON = "重排模型不可用，已回退余弦阈值0.6，结果偏宽松"
 # PRD §2.3：B 项语义相近分满分 30。
 MAX_SCORE = 30
 # PRD §2.3 对应 S4 §一.2：丢弃少于 6 字符的标题、姓名等短片段。
@@ -31,13 +37,15 @@ MIN_SENTENCE_LEN = 6
 
 @dataclass
 class ItemSim:
-    """保存一条职责的最高余弦、命中的简历原句与覆盖状态。"""
+    """保留最高余弦，并记录重排最高分、对应原句与覆盖状态。"""
 
     # 职责及证据保留原文，方便后续报告逐项追溯。
     item: str
     best_sim: float
     best_sentence: str
     covered: bool
+    # logit 只判覆盖，不参与分数幅度；无有效重排结果时用负无穷表示缺测。
+    rerank_score: float
 
 
 @dataclass
@@ -48,6 +56,9 @@ class SemanticScore:
     score: int
     per_item: list[ItemSim]
     uncovered: list[str]
+    # 默认值兼容 S5/S6 的三位置参数构造；降级原因可直接向报告传播。
+    status: str = "ok"
+    reasons: list[str] = field(default_factory=list)
 
 
 @lru_cache(maxsize=1)
@@ -70,7 +81,7 @@ def _encode_batch(model: TextEmbedding, texts: list[str]) -> np.ndarray:
 
 
 def score_semantic(resume_text: str, job: JobInfo) -> SemanticScore:
-    """逐条匹配职责与简历句子，仅对已覆盖职责的最高余弦取平均计分。"""
+    """余弦 top-3 后重排判覆盖，未覆盖计零，重排失败显式降级待复核。"""
     # ① 严格使用指定的中文标点和换行切句，strip 后再过滤长度。
     sentences = [part.strip() for part in re.split(r"[。！？；\n]", resume_text)
                  if len(part.strip()) >= MIN_SENTENCE_LEN]
@@ -80,7 +91,8 @@ def score_semantic(resume_text: str, job: JobInfo) -> SemanticScore:
         return SemanticScore(score=0, per_item=[], uncovered=["JD 无可比对职责"])
     if not sentences:
         # 没有有效原句时不加载模型，每条职责均未覆盖且证据为空。
-        per_item = [ItemSim(item, 0.0, "", False) for item in responsibilities]
+        # 缺少证据不能用 0 logit，否则在 >=0 的规则下会被误判覆盖。
+        per_item = [ItemSim(item, 0.0, "", False, float("-inf")) for item in responsibilities]
         return SemanticScore(score=0, per_item=per_item, uncovered=list(responsibilities))
 
     # ③ 句子和职责各编码一批；编码不进入下方逐职责循环。
@@ -91,18 +103,39 @@ def score_semantic(resume_text: str, job: JobInfo) -> SemanticScore:
     similarities = job_vectors @ resume_vectors.T
     # 浮点误差可能使同句点积略超 ±1，仅修正余弦的数值边界。
     similarities = np.clip(similarities, -1.0, 1.0)
-    best_indices = np.argmax(similarities, axis=1)
     per_item = []
-    for index, item in enumerate(responsibilities):
-        # ④ argmax 遇到并列时固定取首句，保证证据选择顺序稳定。
-        best_index = int(best_indices[index])
-        best_sim = float(similarities[index, best_index])
-        per_item.append(ItemSim(item, best_sim, sentences[best_index],
-                                best_sim >= COVER_THRESHOLD))
+    status, reasons = "ok", []
+    try:
+        # ④ rag 的模块级 _reranker 只加载一次；在职责循环外取复用实例。
+        rr = _get_reranker()
+        for item, row in zip(responsibilities, similarities):
+            # 稳定排序使余弦并列时保留原句顺序；不足三句就全部作为候选。
+            candidates = np.argsort(-row, kind="stable")[:RERANK_TOP_K]
+            docs = [sentences[int(index)] for index in candidates]
+            rerank_scores = np.asarray(list(rr.rerank(item, docs)), dtype=float)
+            # 生成器可能在消费时失败；缺项、NaN、无穷也不能冒充有效精判。
+            if rerank_scores.shape != (len(docs),) or not np.isfinite(rerank_scores).all():
+                raise ValueError("重排结果数量或数值无效")
+            best = int(np.argmax(rerank_scores))
+            rerank_score = float(rerank_scores[best])
+            # 余弦最大值与重排证据分别保留，不能将 logit 当相似度乘 30。
+            per_item.append(ItemSim(item, float(row[candidates[0]]), docs[best],
+                                    rerank_score >= RERANK_THRESHOLD, rerank_score))
+    except Exception:
+        # 加载或推理失败都整批回退，防止同一结果混用两套覆盖规则。
+        status, reasons = "needs_review", [RERANK_FALLBACK_REASON]
+        per_item = []
+        for item, row in zip(responsibilities, similarities):
+            best = int(np.argmax(row))
+            best_sim = float(row[best])
+            # 缺测 logit 不伪造成 0；降级证据恢复为余弦最高句。
+            per_item.append(ItemSim(item, best_sim, sentences[best],
+                                    best_sim >= LEGACY_COS_THRESHOLD, float("-inf")))
 
-    # ⑤ 只平均 covered 项；int(x + 0.5) 避免银行家舍入。
+    # ⑤ S6 覆盖率修正：只累加 covered 相似度，分母保留全部职责。
     covered_sims = [entry.best_sim for entry in per_item if entry.covered]
-    score = int(MAX_SCORE * (sum(covered_sims) / len(covered_sims)) + 0.5) if covered_sims else 0
+    score = int(MAX_SCORE * sum(covered_sims) / len(job.responsibilities) + 0.5)
     # ⑥ 未覆盖职责按 JD 原顺序、原文返回，供 S6 生成缺口。
     uncovered = [entry.item for entry in per_item if not entry.covered]
-    return SemanticScore(score=score, per_item=per_item, uncovered=uncovered)
+    return SemanticScore(score=score, per_item=per_item, uncovered=uncovered,
+                         status=status, reasons=reasons)

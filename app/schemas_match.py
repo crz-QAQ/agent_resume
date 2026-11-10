@@ -11,7 +11,8 @@ class MatchScore(BaseModel):
     # PRD §三：匹配度总分。
     total: int = Field(description="匹配度总分，0-100")
     # PRD §三：三项得分。
-    breakdown: dict[str, int] = Field(description="分项得分，键为 hard、semantic、llm")
+    # S6 §三.1：前三项为整数，另带硬分与 LLM 的逐项明细。
+    breakdown: dict[str, int | dict[str, int]] = Field(description="三项得分及 hard_detail、semantic_detail、llm_detail")
 
 
 class ResumeKeyword(BaseModel):
@@ -19,7 +20,7 @@ class ResumeKeyword(BaseModel):
     # PRD §三需求3：关键字文本。
     name: str = Field(description="简历关键字文本，如 Go")
     # PRD §三需求3：关键字分类。
-    category: str = Field(description="类别：language/framework/middleware/db/cloud/tool/domain")
+    category: str = Field(description="类别：语言/框架/中间件/数据库/云/工具/其他")
     # PRD §三需求3：关键字权重依据。
     count: int = Field(description="关键字在简历中出现的次数")
 
@@ -53,7 +54,7 @@ class MatchReport(BaseModel):
     # PRD §三：总分与分项得分。
     score: MatchScore = Field(description="匹配度总分和三项得分")
     # PRD §三：按总分分档的结论。
-    verdict: str = Field(description="结论：高度匹配/匹配/勉强匹配/不匹配")
+    verdict: str = Field(description="结论：高度匹配/匹配/勉强/不匹配")
     # PRD §三需求3：简历关键字。
     keywords: list[ResumeKeyword] = Field(description="简历关键字及类别、出现次数")
     # PRD §三需求4：简历主要项。
@@ -61,13 +62,17 @@ class MatchReport(BaseModel):
     # PRD §三需求2：带证据的扣分理由。
     deductions: list[Deduction] = Field(description="带 JD 和简历证据的扣分理由")
     # PRD §三需求8：岗位要求中缺失的地方。
-    missing: list[str] = Field(description="相对岗位要求缺失的内容")
+    missing: list[Deduction] = Field(description="有 JD 证据的缺口，type=missing、deduct=0")
     # PRD §三需求8：与岗位不符的地方。
-    mismatches: list[str] = Field(description="与岗位要求不符的内容")
+    mismatches: list[Deduction] = Field(description="硬分中年限、学历不符或未知的原始记录")
     # PRD §三需求5：诚实的补充建议。
     suggestions: list[str] = Field(description="需要补充的内容建议，禁止编造经历")
     # PRD §三：报告元数据。
     meta: dict = Field(description="简历文件名、JD 摘要、模型、成本、耗时等元数据")
+    # S6 §三.10：旧调用者可省略；新汇总器显式给出聚合状态及原因。
+    status: str = Field(default="ok", description="聚合状态：ok/needs_review/failed")
+    # 失败仍返回三项相加的分数，原因不能只藏在日志中。
+    reasons: list[str] = Field(default_factory=list, description="各阶段失败或待复核原因")
 
 
 class JobInfo(BaseModel):
