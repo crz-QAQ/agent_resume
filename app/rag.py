@@ -41,6 +41,7 @@ from fallback import call_with_fallback_async
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 CORPUS_DIRECTORIES = ("docs/教材", "docs/任务书")
+EMBED_MODEL_NAME = "BAAI/bge-small-zh-v1.5"
 
 # 分块采用“正文最多 420 字符 + 相邻块最多 80 字符重叠”的约束，
 # 从而保证拼上重叠后的单个 chunk 仍不超过 500 字符。
@@ -309,7 +310,7 @@ def build_vector_index(
     返回矩阵形状为 (chunk 数, 向量维度)，每一行对应相同下标的 Chunk。
     归一化后，文档矩阵与归一化问题向量的点积就是余弦相似度。
     """
-    model = TextEmbedding(model_name="BAAI/bge-small-zh-v1.5")
+    model = TextEmbedding(model_name=EMBED_MODEL_NAME)
     # FastEmbed 返回生成器；先完整消费再转换为二维 float32 矩阵。
     embeddings = np.asarray(
         list(model.embed([f"{c.heading}\n{c.text}" for c in chunks], batch_size=32)),
