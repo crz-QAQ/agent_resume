@@ -27,13 +27,8 @@ RUN useradd --create-home --shell /bin/bash appuser \
     && chown -R appuser:appuser /app
 USER appuser
 
-# ⚠️ 关键：必须是 /app/app
-
-#    因为 api.py 用的是平铺导入（from schemas import ...）
-
-#    Python 只在 cwd 里找兄弟模块
-
-WORKDIR /app/app
+# 从项目根目录加载app包，与本地启动命令一致。
+WORKDIR /app
 
 EXPOSE 8000
-CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "app.api:app", "--host", "127.0.0.1", "--port", "8000"]

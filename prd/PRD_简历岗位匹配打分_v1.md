@@ -1,8 +1,8 @@
-# PRD｜简历 × 岗位匹配打分（v1.1）
+# PRD｜简历 × 岗位匹配打分（v1.2.1）
 
 > 项目：resume-agent
 > 作者：蔡荣祖 + Hermes
-> **版本：v1.1（2026-11-10）** —— 变更见文末「十、变更记录」
+> **版本：v1.2.1（2026-11-10）** —— 变更见文末「十、变更记录」
 > 状态：待评审（**评审通过才开工，不允许一次性交付整个 PRD**）
 > 开发方式：**按 S0→S7 分块（含 S4.5），每块完成 → 你 review 消化 → 我再出下一块**
 >
@@ -131,65 +131,153 @@
 
 ---
 
-## 三、输出契约（JSON，先定死再写代码）
+## 三、输出契约（JSON，**v1.2 已与实现对齐**）
 
 ```python
 class MatchScore(BaseModel):
-    total: int                          # 0-100
-    breakdown: dict[str, int]           # {"hard": 32, "semantic": 21, "llm": 18}
+    total: int                        # 0-100
+    breakdown: dict                   # 见下方说明（v1.2：允许嵌套结构化明细）
+    # breakdown = {
+    #   "hard": 33, "semantic": 21, "llm": 25,          ← 三项分值（int）
+    #   "hard_detail": {"years": 15, "education": 10, "skills": 8},
+    #   "semantic_detail": 21,                            ← 冗余保留，兼容旧消费方
+    #   "llm_detail": {"stack_depth": 9, "domain_fit": 10, "proof_strength": 6},
+    # }
 
 class ResumeKeyword(BaseModel):
-    name: str                           # 关键字文本，如 "Go"
-    category: str                       # language / framework / middleware / db / cloud / tool / domain
-    count: int                          # 在简历中出现的次数（衡量权重）
+    name: str                         # 关键字文本，如 "Go"
+    category: str                     # **中文**：语言 / 框架 / 中间件 / 数据库 / 云 / 工具 / 其他
+    count: int                        # 在简历原文中出现的次数
 
 class ResumeHighlight(BaseModel):
-    label: str                          # 如 "工作年限" / "最近项目" / "技术栈"
-    value: str                          # 如 "3 年，后端"
+    label: str                        # 姓名 / 工作年限 / 学历 / 最近公司 / 技术栈 / 成果亮点
+    value: str
 
 class Deduction(BaseModel):
     item: str
-    type: str
-    deduct: int
-    jd_evidence: str
-    resume_evidence: str
-    severity: str
+    type: str                         # missing_skill / missing / years_short / years_unknown /
+                                      # education / education_unknown / ...
+    deduct: int                       # 缺口类为 0（不是扣分，是缺口）
+    jd_evidence: str                  # JD 原文；必填
+    resume_evidence: str              # 简历原文；无则写「简历未体现」
+    severity: str                     # high / medium / low
+
+class SemanticItem(BaseModel):        # v1.2 新增（S4.5 的 per_item，PDF 要用）
+    item: str                         # JD 的一条职责
+    best_sim: float                   # 余弦最高值
+    rerank_score: float               # 交叉编码器重排分（logit）
+    best_sentence: str                # 命中的简历原句
+    covered: bool                     # rerank_score >= 0
 
 class MatchReport(BaseModel):
     score: MatchScore
-    verdict: str                        # 高度匹配 / 匹配 / 勉强匹配 / 不匹配（按总分分档）
-    keywords: list[ResumeKeyword]        # 【需求3】简历关键字提取
-    highlights: list[ResumeHighlight]    # 【需求4】简历主要项
-    deductions: list[Deduction]          # 【需求2】扣分理由
-    missing: list[str]                   # 【需求8】与岗位描述中缺失的地方
-    mismatches: list[str]                # 【需求8】与岗位不符的地方
-    suggestions: list[str]               # 【需求5】还需要补充什么（诚实建议，禁止编造经历）
-    meta: dict                           # 简历文件名 / JD 摘要 / 模型 / 成本 / 耗时
+    verdict: str                      # 高度匹配 / 匹配 / **勉强** / 不匹配（v1.2 对齐实现）
+    keywords: list[ResumeKeyword]     # 【需求3】简历关键字提取
+    highlights: list[ResumeHighlight] # 【需求4】简历主要项
+    deductions: list[Deduction]       # 【需求2】扣分理由（只来自硬分）
+    missing: list[Deduction]          # 【需求8】JD 要、简历没有（v1.2：由 str 改为 Deduction）
+    mismatches: list[Deduction]       # 【需求8】对不上 / 无法确认（v1.2：同上）
+    suggestions: list[str]            # 【需求5】带 [LLM] / [缺口] 来源前缀
+    semantic_items: list[SemanticItem]# v1.2 新增：语义覆盖明细（PDF 第 4 节用）
+    status: str                       # v1.2 新增：ok / needs_review / failed
+    reasons: list[str]                # v1.2 新增：状态原因（失败/降级的说明）
+    meta: dict                        # model / prompt_version / cost_yuan / elapsed_ms /
+                                      # resume_chars / jd_chars / generated_at
 ```
+
+**契约必须与代码一致**：本节的字段名、类型、取值，与 `app/schemas_match.py` + `app/match_report.py` 的实现一致；
+若后续实现要改契约，**先改本节再改代码**。
 
 **分档规则**（写死在代码里，不让模型定）：
 
 ```
-≥85 高度匹配   ≥70 匹配   ≥55 勉强匹配   <55 不匹配
+≥85 高度匹配   ≥70 匹配   ≥55 勉强   <55 不匹配
 ```
 
 ---
 
-## 四、PDF 报告结构（**需求 7、8 的落点**）
+## 四、PDF 报告结构（**需求 7、8 的落点**，v1.2 修订）
 
-一页正文 + 最多两页附录，中文字体必须内嵌。固定章节：
+**页数**：v1.2 **不设页数上限**——本版本接受「特别详细的分析」，内容完整优先于篇幅。
+中文字体必须内嵌（`pdf_font.get_cjk_font()`，4 级回退，绝不静默降级 Helvetica）。
 
-| 页 | 章节 | 内容 |
+**文件命名**：`简历评分_<简历文件名主干>_<岗位标题或JD前8字>_<YYYYMMDD-HHMM>.pdf`
+
+### 4.1 章节顺序（固定）
+
+| # | 章节 | 内容 | 数据来源（**每个数字都必须来自 MatchReport**）|
+|---|---|---|---|
+| 1 | 抬头 | 简历文件名 / 岗位标题 / 生成时间 / **状态标签** | `meta`、`job.title`、`status` |
+| 2 | **总分** | 大字总分 + 档位 + 三项得分条（硬性 40 / 语义 30 / LLM 30） | `score.total`、`verdict`、`score.breakdown` |
+| 3 | **扣分理由** | 表格：扣分项 / 扣几分 / JD 依据 / 简历现状 / 严重度 | `deductions` |
+| 4 | **语义覆盖明细**（v1.2 新增）| 表格：JD 职责 / 余弦 / 重排分 / 是否覆盖 / 命中的简历原句 | `semantic_items` |
+| 5 | **简历关键字** | 按类别分组标签 + 出现次数 | `keywords` |
+| 6 | **简历主要项** | 姓名 / 年限 / 学历 / 最近公司 / 技术栈 / 成果亮点（各一行，缺失则不印该行）| `highlights` |
+| 7 | **对比表** | 左 JD 要求 / 中判定 / 右简历情况（见 4.2 拼装规则）| `deductions` + `mismatches` + `semantic_items` |
+| 8 | **缺失与不符** | 两段：缺失（`missing`）/ 不符或待确认（`mismatches`）| `missing`、`mismatches` |
+| 9 | **建议补充** | 带来源标签，最多 10 条 | `suggestions` |
+| 10 | 页脚（每页）| 免责 + 审计小字（见 4.4）| `meta` |
+
+### 4.2 对比表拼装规则（v1.2 新增，防止自由发挥）
+
+```
+行来源与顺序：
+  1) deductions 里 type ∈ {years_short, years_unknown, education, education_unknown}
+     → 左列 = jd_evidence，右列 = resume_evidence，判定见下表
+  2) deductions 里 type == missing_skill
+     → 左列 = 「必备技能：<item>」，右列 = 「简历未体现」，判定 ✗
+  3) semantic_items 里每条职责一行（已覆盖的进 ✓ 行，未覆盖的进 ✗ 行）
+
+判定符号（四态，不许只用三态）：
+  ✓  达标 / 已覆盖
+  ✗  不符 / 未覆盖
+  ?  无法确认（**专用于 years_unknown / education_unknown**，即简历没写，不是不合格）
+  —  JD 未提该项要求（如 JD 没写学历 → 不印这一行，避免制造无意义的 ✗）
+```
+
+### 4.3 「待确认」必须与「不符」分开（v1.2 强调）
+
+```
+简历没写年限 → years_unknown → 对比表判 ?，缺失与不符那节归入「待确认（需人工补充信息）」
+年限 2 年 vs 要求 3 年 → years_short → 对比表判 ✗，归入「不符」
+
+✗ 禁止把 unknown 印成「不符合」：那等于替候选人下了错误结论。
+```
+
+### 4.4 页脚（免责 + 审计）
+
+```
+免责：本报告由 AI 生成，分数仅作初筛参考；关键结论请人工复核。
+
+审计（8pt 小字，一行）：
+  模型 <meta.model> · prompt <meta.prompt_version> · 成本 ¥<meta.cost_yuan>
+  · 耗时 <meta.elapsed_ms>ms · 生成于 <meta.generated_at>
+```
+
+### 4.5 排版硬要求
+
+```
+· 所有长文本用 Paragraph（自动换行），禁止 drawString 画长串
+· 章节标题与首个表格不断页（keepWithNext / KeepTogether）
+· 表格 repeatRows=1（跨页重复表头）
+· 状态 needs_review → 黄底告警条「本报告存在待确认项，请人工复核」；
+  failed → 红底「部分环节失败，分数仅供参考」
+· 生成 3 页以上必须能正常翻页，不许内容溢出画布（用 platypus，不要手工 y 坐标）
+```
+
+**按列宽分档截断（v1.2.1 修订：单一 120 字上限会让窄列挤成 8 行）**：
+
+| 列宽 | 典型字段 | 截断字数 |
 |---|---|---|
-| 1 | 抬头 | 简历文件名 / 岗位 / 生成时间 |
-| 1 | **总分** | 大字 78 / 100 + 档位标签 + 三项分值得分条 |
-| 1 | **扣分理由** | 表格：扣分项 / 扣几分 / JD 依据 / 简历现状 / 严重度 |
-| 2 | **简历关键字** | 按类别分组的标签，出现次数标注 |
-| 2 | **简历主要项** | 姓名 / 年限 / 学历 / 最近公司 / 技术栈 / 代表项目（各一行） |
-| 2 | **对比表** | 左列 JD 要求，右列简历情况，中间 ✓ / ✗ / ?（部分符合）|
-| 3 | **缺失与不符** | 缺失项列表 + 不符项列表（分两栏或分两段） |
-| 3 | **建议补充** | 3-6 条，只针对「缺失但可补」的项，**禁止建议编造经历** |
-| 页脚 | 免责 | 本报告由 AI 生成，分数仅作初筛参考；关键结论请人工复核 |
+| **≤55mm** | 语义明细「JD 职责」（55mm）、「必备技能：x」| **40 字** |
+| **56–120mm** | 对比表「JD 要求」（75mm）与「简历情况」（84mm）、扣分表「JD 依据」「简历现状」| **80 字** |
+| **>120mm** | 语义明细「命中的简历原句」（170mm）| **120 字** |
+
+> v1.2.1 补充两点：
+> ① 分档按**区间**判定，不留缝隙（旧表述「95–110mm」漏掉 84mm 的对比表右列 → 用了 120 字上限、挤成 5 行）。
+> ② 表内所有列统一走 `_limit_for_width(列宽)` 查表，不许手挑档位；**以后加列自动套用**。
+
+**扣分数字统一带负号**：「扣几分」列一律印 `-5` 而不是 `5`（缺口类 `deduct=0` 印 `—`，避免让人以为「扣了 0 分」）。
 
 ---
 
@@ -303,17 +391,50 @@ class MatchReport(BaseModel):
 ### S7｜PDF 报告渲染 + 接口 + 验收（1 天）
 
 - **做什么**
-  - `app/report_pdf.py`：`render_report(rep: MatchReport) -> bytes`，按第四节章节排版
-  - `app/api.py` 增加 `POST /match/score`：`multipart`（PDF 文件 + jd_text 表单字段）
-    - 返回 JSON（MatchReport）+ `report_id`
-  - `POST /match/report/{report_id}` 或直接返回 `report_url`（v1：写临时目录 + 返回文件路径）
-  - `tools/verify_match.py`：端到端验证脚本
+  1. `app/report_pdf.py`：`render_report(rep: MatchReport, job: JobInfo) -> bytes`
+     - 按第四节 4.1~4.5 排版（含语义覆盖明细、对比表四态、页脚审计小字、状态告警条）
+     - 中文字体只能用 `pdf_font.get_cjk_font()`；每个数字必须取自 `MatchReport`
+  2. `app/api.py` 新增 3 个接口（v1.2 定死）：
+
+```
+POST /match/score          multipart: file(简历 PDF/docx) + jd_text(表单字段)
+  → 200 JSON: { report_id: "<uuid>", report: <MatchReport> }
+  → 422  文件类型不支持 / 扫描件 / jd_text 为空或 <20 字
+  → 413  文件 > 10MB
+  → 503  模型全部不可用（fallback 链耗尽）
+  → 500  内部错误（含 PDF 渲染失败）
+
+GET  /match/report/{report_id}
+  → 200 application/pdf（Content-Disposition: attachment; filename="<4.1 的命名>"）
+  → 404  report_id 不存在或已过期
+
+GET  /match/stats
+  → 200 { cached_reports: n, ttl_minutes: 30 }   ← 便于本地排查，不暴露任何简历内容
+```
+
+  3. **`report_id` 与存储**
+     - `report_id = uuid4().hex`；PDF 写 `<项目根>/reports/<report_id>.pdf`
+     - **TTL 30 分钟**：超过即删（防止简历在磁盘长期驻留）；`reports/` 必须进 `.gitignore`
+     - 简历原文**不落盘**，只在内存里走完流程；落盘的只有最终 PDF
+  4. **监听地址**：默认 `127.0.0.1`，v1 **不做鉴权**（仅本机可用）；
+     README 必须写明「不要直接暴露公网」
+  5. `tools/verify_match.py`：端到端脚本（3 份简历 × 2 个 JD → 6 份 PDF）
+
 - **验收**
-  - 上传 PDF + JD → 返回 200，JSON 结构符合契约
-  - 下载 PDF，用 `pdfplumber` 读回，**能读到总分、扣分表、关键字**（证明中文正常）
-  - 3 份简历 × 2 个 JD → 6 份 PDF 全部生成，人工查看 1 份排版无重叠/截断
-  - 扫描件 PDF → 422；JD 为空 → 422
-- **禁止**：不许为了好看伪造数据；PDF 里每个数字必须来自 MatchReport
+  - 上传 PDF + JD → 200，JSON 结构符合第三节契约（字段齐全、类型正确）
+  - 下载 PDF，`pdfplumber` 读回，**必须能读到**：总分数字、扣分项、语义明细里的某条 JD 职责、审计小字里的 `prompt` 版本
+  - 6 份 PDF 全部生成；人工看 1 份：无重叠、无截断、表格换行正常
+  - 构造 `years_unknown` 用例 → PDF 对比表该行是 `?` 而不是 `✗`
+  - 扫描件 → 422；JD 空 → 422；11MB 文件 → 413
+  - `report_id` 过期后 GET → 404
+  - `reports/` 目录在 `.gitignore` 里（`git check-ignore` 验证）
+
+- **禁止**
+  - 不许为了好看伪造数据（每个数字必须来自 MatchReport）
+  - 不许把简历原文写进磁盘日志
+  - 不许把 `unknown` 印成「不符合」
+  - 不许静默降级字体（中文出方块 = 事故）
+
 
 ---
 
@@ -417,8 +538,12 @@ $ <命令>
 | 4 | C 复核分 evidence 缺失 → failed | 反例脚本 |
 | 5 | 总分 = A+B+C，档位与分数一致 | 断言 |
 | 6 | 6 组用例生成 6 份 PDF，中文可读回 | `pdfplumber` 校验 |
+| 6.1 | PDF 含**语义覆盖明细**节（能读回某条 JD 职责 + 重排分）| `pdfplumber` 逐节校验 |
+| 6.2 | PDF 页脚含**审计小字**（模型 / prompt 版本 / 成本）| 文本 grep |
+| 6.3 | `years_unknown` 用例在对比表是 `?` 而非 `✗` | 断言 |
 | 7 | 单次成本 < 0.002 元 | `UsageMeter` |
 | 8 | suggestions 无编造（集合比对 0 命中） | 断言 |
+| 9 | 接口错误码语义正确（413/422/404/503）| `tools/verify_match.py` |
 
 ---
 
@@ -443,9 +568,9 @@ S4   语义分        0.5-1d
 S4.5 语义重排精判  0.5d   ← v1.1 新增：修 S4 的假阳性（S7 之前必须做）
 S5   LLM 复核      1d
 S6   汇总缺口      0.5d
-S7   PDF+接口      1d
+S7   PDF+接口      1-1.5d  ← v1.2：加语义明细节、四态对比表、审计页脚、3 个接口
 ────────────────────────
-合计 5.5-6.5 天（每天 2-3h）
+合计 6-7 天（每天 2-3h）
 ```
 
 **为什么把 S3 放在 S5 前面**：纯规则部分零成本、零不确定性，
@@ -460,4 +585,5 @@ S7   PDF+接口      1d
 |---|---|---|---|
 | v1.0 | 2026-11-09 | 初版：100 = 硬性 40 + 语义 30（向量余弦）+ LLM 30 | — |
 | v1.1 | 2026-11-10 | ① 语义分改两段式（余弦召回 + 重排精判），新增 S4.5 分块<br>② 语义分「覆盖率进分母」<br>③ LLM rubric 三项改为 `stack_depth`/`domain_fit`/`proof_strength`<br>④ 硬性分明确「未知≠0」（`years_unknown` / `education_unknown` 单独类型）<br>⑤ 文档归属：PRD 推 GitHub，任务书与实施记录留 `docs/` 本地 | ① 余弦分不开同句式不同领域（0.711 vs 0.785），无关简历也能拿高分<br>② 「6 条只对上 1 条」与「6 条全对上」同分，不合理<br>③ v1.0 的「技术栈匹配」与 A 项必备技能重复计分<br>④ 未知被当成 0 会误判候选人<br>⑤ 过程材料不该进公开仓库 |
-
+| v1.2 | 2026-11-10 | ① **§三 契约与实现对齐**：`missing`/`mismatches` 由 `list[str]` 改为 `list[Deduction]`；`breakdown` 允许嵌套明细；verdict 文案统一为「勉强」；keyword.category 改中文七类；新增 `status`/`reasons`/`semantic_items`（含 `SemanticItem` 模型）<br>② **§四 PDF 结构重写**：去掉页数上限（内容优先）；新增「语义覆盖明细」节；新增对比表拼装规则与四态符号（✓/✗/?/—）；明确「待确认」与「不符」必须分开；页脚加审计小字；补排版硬要求与状态告警条<br>③ **§五 S7 接口定死**：`POST /match/score`、`GET /match/report/{id}`、`GET /match/stats`，含 413/422/404/503 语义、`report_id` 用 uuid、TTL 30 分钟、只落盘 PDF 不落盘简历原文、默认监听 127.0.0.1 且 v1 不鉴权<br>④ §七 验收加 6.1/6.2/6.3/9 四条 | ① 契约漂移会让 S7 的 JSON 与文档不一致，外部调用方无法信任<br>② 报告要给人看：语义明细是「可解释性」的核心证据，缺了等于只有分数没有依据<br>③ 接口不写死，Codex 会自由发挥（路径/错误码/存储位置各写一套）<br>④ 新增内容必须有对应验收，否则等于没做 |
+| v1.2.1 | 2026-11-10 | ① §4.5 截断改为**按列宽分档**（窄列 40 字 / 中列 80 字 / 宽列 120 字）<br>② 「扣几分」列统一带负号，缺口类印 `—` | S7a 压力用例实测：单一 120 字上限让 55mm 窄列挤成 8 行，观感差；扣分显示正数容易被误读成「得了 5 分」 |

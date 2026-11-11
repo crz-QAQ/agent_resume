@@ -49,6 +49,19 @@ class Deduction(BaseModel):
     severity: str = Field(description="严重度：high/medium/low")
 
 
+class SemanticItem(BaseModel):
+    """透传每条职责的余弦、重排及覆盖证据，不在报告层重新评分。"""
+
+    # S7a / PRD §三：完整保留 S4.5 的职责和命中原句。
+    item: str = Field(description="JD 职责原文")
+    # 数值原样来自 SemanticScore.per_item，渲染器只负责格式化。
+    best_sim: float = Field(description="最高余弦相似度")
+    rerank_score: float = Field(description="交叉编码器重排分；负无穷表示缺测")
+    # covered 采用上游判定，不能从展示用的小数重新判断。
+    best_sentence: str = Field(description="命中的简历原句")
+    covered: bool = Field(description="该职责是否被覆盖")
+
+
 class MatchReport(BaseModel):
     """汇总报告字段，供后续接口和 PDF 渲染共用。"""
     # PRD §三：总分与分项得分。
@@ -73,6 +86,8 @@ class MatchReport(BaseModel):
     status: str = Field(default="ok", description="聚合状态：ok/needs_review/failed")
     # 失败仍返回三项相加的分数，原因不能只藏在日志中。
     reasons: list[str] = Field(default_factory=list, description="各阶段失败或待复核原因")
+    # S7a：默认空列表兼容旧报告；新汇总器透传全部语义明细。
+    semantic_items: list[SemanticItem] = Field(default_factory=list, description="逐条职责的语义覆盖证据")
 
 
 class JobInfo(BaseModel):

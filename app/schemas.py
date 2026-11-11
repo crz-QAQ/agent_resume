@@ -1,4 +1,4 @@
-﻿"""Day 8 N3：用 DeepSeek 抽取结构化简历信息。"""
+"""Day 8 N3：用 DeepSeek 抽取结构化简历信息。"""
 from __future__ import annotations
 
 import os
@@ -6,7 +6,7 @@ import os
 from dotenv import load_dotenv
 from openai import OpenAI
 from pydantic import BaseModel, Field, ValidationError
-from prompts import SYSTEM_RESUME, PROMPT_VERSION
+from app.prompts import SYSTEM_RESUME, PROMPT_VERSION
 
 load_dotenv()
 
@@ -18,12 +18,28 @@ MODEL = os.getenv("LLM_MODEL", "deepseek-chat")
 
 
 class ResumeInfo(BaseModel):
+    """保留姓名、年限及技能三个既有抽取字段。"""
+    # 姓名没有可信依据时允许为空。
+    # 年限上限与下限沿用原模型约束。
+    # 技能用独立列表实例，避免请求之间共享可变默认值。
+    # 此类型由app包统一导入，避免Pydantic类型身份重复。
     name: str | None = None
     years: float | None = Field(default=None, ge=0, le=60)
     skills: list[str] = Field(default_factory=list)
 
 
 def extract_resume(raw_text: str) -> ResumeInfo | None:
+    """按原提示词抽取简历，结构校验失败时执行既有修复。"""
+    # system约束与用户原文保持两条独立消息。
+    # 模型温度和token上限沿用原实现，导入整理不改调用参数。
+    # 返回字段必须通过ResumeInfo结构校验。
+    # 首次错误只生成修复反馈，不能伪造成功结果。
+    # 两次解析仍失败时返回None供调用方处理。
+    # 错误字段用于模型修复，不写入持久化简历缓存。
+    # 本函数属于旧同步抽取示例，新匹配走独立异步流水线。
+    # 这里只调整模块归属，不增加新的模型请求。
+    # 费用及fallback策略继续由相应调用入口维护。
+    # 包式导入让命令行和服务使用同一提示词版本。
     messages: list[dict[str, str]] = [
         {"role": "system", "content": SYSTEM_RESUME},
         {"role": "user", "content": raw_text},

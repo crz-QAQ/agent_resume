@@ -4,7 +4,7 @@
      Python 默认只把「脚本自己所在目录」加进 sys.path，所以 from schemas import ...
      在命令行运行时会 ModuleNotFoundError。
 
-解决：运行前把 练习/ 加进 sys.path（运行时生效）。
+解决：运行前把项目根目录加进 sys.path，以 from app.xxx 导入业务模块。
      编辑器里请额外把 练习 目录 Mark Directory as → Sources Root，
      这样 PyCharm 的静态检查也能看到这些模块（否则会标红，但不影响运行）。
 
@@ -16,7 +16,9 @@ import sys
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-PRACTICE_DIR = PROJECT_ROOT / "app"
-
-if str(PRACTICE_DIR) not in sys.path:
-    sys.path.insert(0, str(PRACTICE_DIR))
+# 工具目录与app目录是同级，业务导入应写成from app.xxx。
+# 引导只调整当前Python进程的搜索路径，不修改用户环境变量。
+# 所有工具共用同一个包身份，避免Pydantic类型校验出现重复类对象。
+# 只加入包的父目录，避免同时加载app.schemas与顶层schemas两个类对象。
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))

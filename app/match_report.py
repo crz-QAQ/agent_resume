@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 
 from app.prompts import PROMPT_VERSION
 from app.schemas_match import Deduction, JobInfo, MatchReport, MatchScore
-from app.schemas_match import ResumeHighlight, ResumeKeyword
+from app.schemas_match import ResumeHighlight, ResumeKeyword, SemanticItem
 
 # 仅依赖结构化输入；导入报告模块不初始化客户端、不加载向量权重。
 if TYPE_CHECKING:
@@ -228,7 +228,12 @@ def build_report(*, resume: ResumeInfo, job: JobInfo, resume_text: str, jd_text:
     })
     # ⑩ 即使阶段 failed，仍照常交付三项之和及带来源的失败原因。
     status, reasons = _aggregate_status(hard, sem, llm, report_reasons)
+    # S7a / PRD §三：只复制 S4.5 的明细，不重算余弦、重排或覆盖状态。
+    semantic_items = [SemanticItem(item=item.item, best_sim=item.best_sim,
+                                   rerank_score=item.rerank_score,
+                                   best_sentence=item.best_sentence, covered=item.covered)
+                      for item in sem.per_item]
     return MatchReport(score=score, verdict=_verdict(total), keywords=keywords,
                        highlights=highlights, deductions=hard.deductions, missing=missing,
                        mismatches=mismatches, suggestions=suggestions, meta=metadata,
-                       status=status, reasons=reasons)
+                       status=status, reasons=reasons, semantic_items=semantic_items)

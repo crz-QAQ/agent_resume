@@ -36,7 +36,7 @@ from typing import Iterable
 from pydantic import BaseModel
 from rank_bm25 import BM25Okapi
 
-from fallback import call_with_fallback_async
+from app.fallback import call_with_fallback_async
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -84,6 +84,9 @@ _reranker: TextCrossEncoder | None = None
 
 @dataclass(frozen=True, slots=True)
 class Chunk:
+    """承载检索片段正文、来源与章节标题。"""
+    # 片段来源与标题保持独立，引用校验不依赖模型生成的来源。
+    # 冻结实例避免检索排序过程中被意外改写。
     source: str
     heading: str
     text: str
@@ -91,6 +94,9 @@ class Chunk:
 
 @dataclass(frozen=True, slots=True)
 class _Section:
+    """承载切分前的Markdown章节标题和正文。"""
+    # 章节标题仅用于来源标识，不参与模型生成字段。
+    # 正文保留切分依据，后续按块大小及重叠规则处理。
     heading: str
     text: str
 
@@ -135,6 +141,8 @@ _EXCLUDED_FILES = {
 
 def scan_markdown_files(project_root: Path = PROJECT_ROOT) -> list[Path]:
     """递归查找教材/和任务/下的 Markdown 文件，返回稳定排序的路径。"""
+    # 语料根目录以项目位置为准，不依赖工具启动时的cwd。
+    # 稳定路径顺序让索引重建和离线评测可以对照。
     files: list[Path] = []
     for directory_name in CORPUS_DIRECTORIES:
         directory = project_root / directory_name
@@ -149,12 +157,16 @@ def scan_markdown_files(project_root: Path = PROJECT_ROOT) -> list[Path]:
 
 def _extract_sections(markdown: str) -> list[_Section]:
     """按 #、##、### 标题切节，并忽略代码块中的井号行。"""
+    # 代码围栏中的井号属于代码，不应被识别为章节标题。
+    # 收集完整章节后才进入切块，避免标题与内容错配。
     sections: list[_Section] = []
     heading = "(无标题)"
     body: list[str] = []
     fence_marker: str | None = None
 
     def add_section() -> None:
+        """收集当前章节缓冲并复位，供标题扫描复用。"""
+        # 章节收口时保留标题及正文的对应关系。
         text = "\n".join(body).strip()
         if text:
             sections.append(_Section(heading=heading, text=text))
@@ -185,12 +197,16 @@ def _extract_sections(markdown: str) -> list[_Section]:
 
 def _split_paragraph(paragraph: str, size: int) -> Iterable[str]:
     """超长段落没有自然分段时，按字符兜底切分。"""
+    # 这里只执行长度兜底切分，不修改原文字词。
+    # 按字符切分让没有空格的中文长段也能进入后续打包。
     for start in range(0, len(paragraph), size):
         yield paragraph[start : start + size]
 
 
 def _pack_paragraphs(text: str) -> list[str]:
     """按段落打包，为后续注入 80 字符重叠预留空间。"""
+    # 打包需要为相邻块重叠预留空间。
+    # 段落顺序保持原文顺序，不按关键词重新排序。
     content_size = MAX_CHUNK_SIZE - OVERLAP_SIZE
     paragraphs = [
         paragraph.strip()
@@ -218,6 +234,8 @@ def _pack_paragraphs(text: str) -> list[str]:
 
 def _split_long_section(text: str) -> list[str]:
     """把长节按段落切开，并让相邻块复用上一块末尾 80 字符。"""
+    # 相邻块重叠用于保留跨边界上下文。
+    # 每个新块仍受已有最大长度约束。
     pieces = _pack_paragraphs(text)
     chunks: list[str] = []
     for piece in pieces:
@@ -233,6 +251,8 @@ def _split_long_section(text: str) -> list[str]:
 
 def split_markdown(markdown: str, source: str) -> list[Chunk]:
     """把一个 Markdown 文件切成带来源和标题的 Chunk。"""
+    # 每个Chunk都携带原始来源和章节标题。
+    # 短章节和长章节共享同一种引用契约。
     chunks: list[Chunk] = []
     for section in _extract_sections(markdown):
         texts = (
@@ -253,6 +273,8 @@ def load_chunks(
     project_root: Path = PROJECT_ROOT,
 ) -> list[Chunk]:
     """读取 Markdown 语料并返回全部 Chunk；文件只读不改写。"""
+    # 载入语料只读取Markdown，不写回源文档。
+    # 返回列表与索引构造顺序保持一致。
     markdown_files = (
         [p for p in files if p.name not in _EXCLUDED_FILES]
         if files is not None
@@ -273,6 +295,8 @@ def tokenize(text: str) -> list[str]:
     “预算”“算护”“护栏”；单字中文无法组成 bigram，因此保留单字。
     英文字母保留原始大小写，数字和下划线同样不经过归一化。
     """
+    # 中文相邻词元用于字面召回，不替代语义模型。
+    # 分词后的索引必须仍能反查原片段。
     tokens: list[str] = []
     for match in TOKEN_RE.finditer(text):
         token = match.group()
@@ -296,6 +320,8 @@ def build_index(
     返回的 token 列表与 chunks 下标对齐，便于用 BM25 的分数下标
     反查对应的 Chunk。该函数只构建索引，不修改模块级检索状态。
     """
+    # BM25分数与分词列表下标对应，不另建候选人数据。
+    # 构建索引不等于发出生成模型请求。
     # 标题必须一起进索引：很多答案是「节标题」本身（如 ### 预算护栏），
     # 只索引正文会让这类问题永远检索不到。
     chunk_tokens = [tokenize(f"{chunk.heading}\n{chunk.text}") for chunk in chunks]
@@ -310,6 +336,8 @@ def build_vector_index(
     返回矩阵形状为 (chunk 数, 向量维度)，每一行对应相同下标的 Chunk。
     归一化后，文档矩阵与归一化问题向量的点积就是余弦相似度。
     """
+    # 模型和向量矩阵成对返回，避免下标与模型状态混用。
+    # 归一化规则沿用现有实现，包式导入不调整余弦算法。
     model = TextEmbedding(model_name=EMBED_MODEL_NAME)
     # FastEmbed 返回生成器；先完整消费再转换为二维 float32 矩阵。
     embeddings = np.asarray(
@@ -329,6 +357,8 @@ def retrieve_bm25(question: str, k: int = 3) -> list[tuple[Chunk, float]]:
     阈值只检查排序后的最高分。一旦最高分达到阈值，返回完整的 top-k，
     较低名次不会再次被过滤。
     """
+    # 空索引或低于阈值的召回必须保留拒答路径。
+    # 检索结果携带真实Chunk，不采用模型自报的引用来源。
     if k <= 0 or _bm25 is None:
         return []
 
@@ -361,6 +391,8 @@ def retrieve(question: str, k: int = 3) -> list[tuple[Chunk, float]]:
     因此矩阵乘法 doc_embs @ question_embedding 的每个结果就是一条余弦相似度，
     数值越大表示语义越接近。
     """
+    # 问题向量和文档矩阵使用同一编码模型。
+    # 最高余弦阈值属于现有检索策略，本次不修改。
     if (
         k <= 0
         or _vector_model is None
@@ -404,6 +436,8 @@ def retrieve_hybrid(
     两路检索各取前 10 个候选。同一个 Chunk 在最终结果中只保留一次；
     若它由两路返回，只采用两路贡献中更高的 1 / (RRF_K + rank)。
     """
+    # 双路结果按片段身份合并，避免重复片段占据多个名次。
+    # 融合分数用于排序，不是匹配报告的评分数值。
     if k <= 0:
         return []
 
@@ -432,6 +466,8 @@ def retrieve_hybrid(
 
 def _get_reranker() -> TextCrossEncoder:
     """懒加载并复用全局交叉编码器，避免每次检索重复加载大模型。"""
+    # 全局惰性实例供原RAG及语义评分共享。
+    # 导入模块不代表立即下载或初始化大模型。
     global _reranker
 
     if _reranker is None:
@@ -453,6 +489,8 @@ def retrieve_rerank(
     通过注意力直接判断二者的语义匹配程度，因此能纠正 RRF 仅凭名次组合
     造成的排序错误。函数最终返回交叉编码器相关性分数，而不是 RRF 分数。
     """
+    # 精排只处理召回候选，避免对全部语料逐一比较。
+    # 交叉编码器分数与原始余弦分数承担不同职责。
     if k <= 0:
         return []
 
@@ -514,6 +552,8 @@ def retrieve_weighted(
     容易漏掉或压低这类结果。向量检索比较的是整体语义，能更好地关联
     “英文术语”与“中文解释”，所以在本语料上应给予更高权重。
     """
+    # 两路权重保持原配置，不因命名空间整理而重新调参。
+    # 按名次融合的结果仍需后续引用校验。
     if k <= 0:
         return []
 
@@ -548,6 +588,8 @@ def _build_rag_user_prompt(
     chunks: list[tuple[Chunk, float]],
 ) -> str:
     """按检索顺序给片段编号，构造只包含资料和问题的 user 消息。"""
+    # 片段编号对应本次检索顺序，不使用全局固定序号。
+    # 资料与问题分别组织，避免让生成内容冒充引用证据。
     sections = ["资料片段："]
     for number, (chunk, _score) in enumerate(chunks, start=1):
         # 编号仅在本次请求内有效，number - 1 可直接反查对应的真实 Chunk。
@@ -560,6 +602,8 @@ def _build_rag_user_prompt(
 
 def _parse_model_output(raw_text: str) -> tuple[str, bool]:
     """提取模型正文和 refused 标志；同时兼容 JSON 与纯文本返回。"""
+    # 解析失败与模型明确拒答需要保持可区分。
+    # 兼容处理只提取既有协议字段，不额外猜测答案。
     text = raw_text.strip()
     try:
         payload = json.loads(text)
@@ -583,6 +627,8 @@ def _validated_rag_answer(
     chunks: list[tuple[Chunk, float]],
 ) -> RagAnswer:
     """从正文引用编号反查真实来源，并忽略模型返回的伪造来源。"""
+    # 引用序号必须回指本次真实检索结果。
+    # 校验过程不能采用模型伪造的文件来源。
     referenced_numbers = [
         int(number) for number in CITATION_RE.findall(answer_text)
     ]
@@ -633,6 +679,8 @@ def _validated_rag_answer(
 
 async def ask(question: str, k: int = 5) -> RagAnswer:
     """执行一次完整 RAG：检索、生成回答、解析并校验引用。"""
+    # 完整问答先检索再生成，不能绕过资料证据。
+    # 生成失败继续使用原有异常契约向上传递。
     chunks = retrieve_hybrid(question, k=5)
     if not chunks:
         # 没有达到阈值的片段时直接拒答，绝不进入模型调用以节省成本。
@@ -655,6 +703,8 @@ async def ask(question: str, k: int = 5) -> RagAnswer:
 
 async def _run_rag_questions(questions: Iterable[str]) -> None:
     """顺序执行问题，避免并发请求导致日志和厂商回退过程交错。"""
+    # 顺序执行便于把每次模型日志与问题对应。
+    # 自检只影响直接运行时的演示输出。
     for question in questions:
         # k 必须跟评测脚本保持一致（eval_retrieval.py 用 k=5），
         # 否则「评测命中」和「实际能答」是两套标准，评测结果不代表线上效果
@@ -673,6 +723,8 @@ async def _run_acceptance_summary(
     cases: list[tuple[str, list[str], str]],
 ) -> tuple[int, int, bool]:
     """按 8 道评测题现场统计检索命中、引用准确率和拒答结果。"""
+    # 评测指标来自本轮执行结果，不复用历史命中数。
+    # 拒答和引用准确率分别统计，避免互相掩盖。
     hit_count = 0
     citation_count = 0
     real_citations = {
@@ -701,6 +753,9 @@ async def _run_acceptance_summary(
 
 def main() -> None:
     # 两个检索函数依赖这些模块级索引；build_* 只负责返回新索引。
+    """执行既有RAG命令行演示与验收汇总。"""
+    # 命令行入口与API现在通过同一个app包访问降级链。
+    # 这里只补模块文档，不改变原有问题清单或检索策略。
     global _bm25, _indexed_chunks, _tokenized_chunks
     global _vector_model, _document_embeddings
 
@@ -751,6 +806,8 @@ def main() -> None:
     # 会在循环关闭之后才被回收，回收时调用 aclose() 就会抛
     # RuntimeError: Event loop is closed（Task exception was never retrieved）。
     async def _run_all():
+        """顺序执行当前命令行演示的异步验收。"""
+        # 各项任务沿用既有调用次序和参数。
         await _run_rag_questions(questions)
         return await _run_acceptance_summary(chunks, CASES)
 

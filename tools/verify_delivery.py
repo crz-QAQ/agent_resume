@@ -8,20 +8,22 @@ import io
 import sys
 from pathlib import Path
 
-ROOT = Path(r"D:\pycharm_projects\fde-learning")
-sys.path.insert(0, str(ROOT / "练习"))
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
 
-from file_parser import (  # noqa: E402
+from app.file_parser import (  # noqa: E402
     ScannedPdfError,
     UnsupportedFormatError,
     extract_text,
 )
 
-TF = ROOT / "工具" / "test_files"
+TF = ROOT / "tools" / "test_files"
 results = []
 
 
 def check(name, ok, detail=""):
+    """记录并打印一项历史文件解析验收结果。"""
+    # 单项失败继续执行其他断言，最终退出码统一表示验收结果。
     results.append((name, ok, detail))
     print(f"[{'PASS' if ok else 'FAIL'}] {name} {detail}")
 
@@ -66,14 +68,23 @@ except Exception as exc:  # noqa: BLE001
 
 # ⑥ HTTP 层：422 / 413 / 200
 from fastapi.testclient import TestClient  # noqa: E402
-import api  # noqa: E402
+from app import api  # noqa: E402
 
 # 打桩掉 LLM，只验文件层与状态码
-from agent import AgentResult, StepLog  # noqa: E402
-from schemas import ResumeInfo  # noqa: E402
+from app.agent import AgentResult, StepLog  # noqa: E402
+from app.schemas import ResumeInfo  # noqa: E402
+# 文件解析错误与API现在使用同一异常类，不会因重复导入而捕获失败。
+# 包路径统一也让AgentResult和ResumeInfo保持原有类型关系。
+# 以下旧路由替身仍只用于协议验收，不代表真实模型调用成功。
+# 新的六组真实匹配由verify_match.py独立执行和计费。
+# 本工具保留历史Docker体积检查，未把它并入S7b的API验收分母。
+# 工具根目录根据脚本位置计算，不再绑定某台机器的旧项目路径。
+# 除这些导入和文档调整，原文件解析断言保持原样。
 
 
 async def fake_agent(text):
+    """提供旧上传接口的零网络替身，只验证文件层与HTTP协议。"""
+    # 历史协议验收不因模型可用性而改变文件解析边界。
     return AgentResult(
         status="ok",
         data=ResumeInfo(name="张伟", years=6.0, skills=["Go", "PHP"]),
@@ -84,6 +95,7 @@ async def fake_agent(text):
 
 
 api.parse_resume_agent = fake_agent
+# 替身只在本独立验收进程中生效，不写入生产配置。
 client = TestClient(api.app)
 
 r = client.post("/resume/upload", files={"file": ("a.exe", b"MZ")})
@@ -96,6 +108,7 @@ r = client.post("/resume/upload", files={"file": ("big.docx", b"x" * (10 * 1024 
 check("⑥c 11MB → 413", r.status_code == 413, f"code={r.status_code}")
 
 r = client.post("/resume/upload", files={"file": ("empty.txt", b"")})
+# 空文件由真实文件解析器拒绝，不能依靠模型替身判定。
 check("⑥d 空文件 → 422", r.status_code == 422, f"code={r.status_code}")
 
 r = client.post("/resume/upload", files={"file": ("table_resume.docx", (TF / "table_resume.docx").read_bytes())})
@@ -123,6 +136,7 @@ if m:
 check("⑦ docker 镜像 ≤550MB", 0 < mb <= 550, f"size={size_txt or '(空)'} ≈{mb:.0f}MB")
 
 failed = [n for n, ok, _ in results if not ok]
+# Docker检查沿用旧工具行为，本次S7b不调用此整体验收脚本。
 print(f"\n=== {len(results) - len(failed)}/{len(results)} 通过 ===")
 print("FAILED: " + (", ".join(failed) if failed else "无"))
 sys.exit(1 if failed else 0)

@@ -12,6 +12,7 @@ docs/
 .chroma/
 **/.chroma/
 *.log
+reports/
 
 # ===== Python =====
 __pycache__/

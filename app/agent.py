@@ -7,12 +7,19 @@ from unittest.mock import patch
 
 from pydantic import BaseModel, Field, ValidationError
 
-from schemas import ResumeInfo
-from fallback import call_with_fallback_async
-from prompts import PROMPT_VERSION, SYSTEM_RESUME
+from app.schemas import ResumeInfo
+from app.fallback import call_with_fallback_async
+from app.prompts import PROMPT_VERSION, SYSTEM_RESUME
+# 包导入保证旧HTTP入口与S7b流水线共享同一ResumeInfo类型。
+# 降级链及prompt本身保持既有实现，命名空间调整不改变抽取策略。
 
 
 class StepLog(BaseModel):
+    """记录一次抽取或修复的调用计量及结果。"""
+    # 步骤号用于串联执行历史，不接收模型自报的调用费用。
+    # action仅区分抽取与修复，调用成败由代码填写。
+    # token计量来自当前调用返回的UsageMeter。
+    # note记录阶段原因，不保存原始简历正文。
     step: int                    # 第几步，从 1 开始
     action: Literal["extract", "repair"]
     tokens_in: int
@@ -23,6 +30,11 @@ class StepLog(BaseModel):
 
 
 class AgentResult(BaseModel):
+    """汇总简历Agent状态、可信字段、护栏原因与总成本。"""
+    # 状态描述解析和护栏结果，HTTP状态码由上层决定。
+    # 原始简历不属于结果字段，不会随结构化字段一起入库。
+    # 步骤清单保留每次实际执行，便于追溯修复费用。
+    # prompt版本用于区分解析约束的历史版本。
     status: Literal["ok", "needs_review", "failed"]
     data: ResumeInfo | None = None
     reasons: list[str] = Field(default_factory=list)
@@ -32,9 +44,17 @@ class AgentResult(BaseModel):
 
 
 repair_reason_keywords = ("空壳", "疑似把招聘要求当成工作经历")
+# 只有这两类原因触发原有repair，相对时间等复核原因不会扩大调用范围。
 
 
 def check_resume(raw_text: str, data: ResumeInfo) -> list[str]:
+    """结合原文执行既有四条简历护栏，不请求模型。"""
+    # 护栏以原文为依据，不允许模型自行声明已经通过。
+    # 结构字段为空不等同于一次成功的解析。
+    # 相对时间需要人工核对，不能在这里猜具体年份。
+    # 招聘要求与候选人经历可能混淆，保持独立原因。
+    # 学生身份只产生复核提示，不直接改写年限字段。
+    # 所有原因由调用者决定是否触发修复，函数自身不修复。
     reasons: list[str] = []
 
     # 规则 1：空壳。
@@ -70,6 +90,15 @@ async def parse_resume_agent(
     max_steps: int = 3,
     budget_yuan: float = 0.02,
 ) -> AgentResult:
+    """依次抽取、校验及按预算修复，返回原有Agent契约。"""
+    # 首次调用与修复共享同一降级链，避免两套厂商选择顺序。
+    # 预算检查发生在修复调用之前，已经花掉的费用不会归零。
+    # 只有指定护栏原因能够触发修复，复核不等于一定重调模型。
+    # JSON不可解析时没有可信字段，返回明确的失败状态。
+    # 修复失败仍保留已发生步骤，不伪装成一次成功抽取。
+    # 每个实际调用单独记费，最终总成本由步骤计量合并。
+    # 模型依赖不可用与输入字段不可信是两类不同问题。
+    # 包式导入只统一类型来源，不改变本函数的护栏条件。
     steps: list[StepLog] = []
 
     # ① extract：固定调用一次模型，并解析结构化结果。
@@ -206,6 +235,8 @@ async def parse_resume_agent(
                     status = "ok"
 
     # ④ 收口：所有实际调用均已记入 steps，再汇总成本。
+    # 汇总仍使用每步实际计量，不把预算上限当成已经发生的费用。
+    # 这也是S7b计算全链路费用时采用的简历抽取成本来源。
     total_cost_yuan = sum(item.cost_yuan for item in steps)
     return AgentResult(
         status=status,
@@ -218,11 +249,18 @@ async def parse_resume_agent(
 
 
 if __name__ == "__main__":
+    # 自检替身只在直接执行时创建，包导入不会执行这些模型模拟场景。
+    # 因此TestClient加载API时不会产生额外调用或测试输出。
     class _FakeMeter:
+        """为本模块自检提供固定的零网络计量替身。"""
+        # 该类只在直接运行模块时定义，生产请求不会使用。
+        # 受控费用用于验证预算分支，不表示真实账单。
         prompt_tokens = 10
         completion_tokens = 5
 
         def cost(self) -> float:
+            """返回自检使用的固定模拟费用。"""
+            # 模拟值只用于验证控制流，实际费用仍从真实UsageMeter取得。
             return 0.001
 
     empty_shell_json = '{"name": null, "years": null, "skills": []}'
@@ -233,6 +271,10 @@ if __name__ == "__main__":
         *,
         system: str | None = None,
     ) -> tuple[str, _FakeMeter]:
+        """自检替身：持续返回空壳，验证失败与修复收口。"""
+        # 替身不访问网络，因此可以独立验证护栏。
+        # 空壳字段保持固定，避免随机模型输出影响自检。
+        # 调用历史用于核实是否发生多余修复。
         case4_calls.append(prompt)
         return empty_shell_json, _FakeMeter()
 
@@ -252,6 +294,10 @@ if __name__ == "__main__":
         *,
         system: str | None = None,
     ) -> tuple[str, _FakeMeter]:
+        """自检替身：按调用阶段提供触发修复的受控结果。"""
+        # 受控场景只验证步数和预算，不代替生产模型评分。
+        # 修复调用与首次调用使用同一签名，防止协议差异被隐藏。
+        # 测试输出仍经过Agent原有校验路径。
         case5_calls.append(prompt)
         return empty_shell_json, _FakeMeter()
 

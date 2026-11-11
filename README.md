@@ -60,12 +60,14 @@ python -m venv .venv
 cp .env.example .env
 # 编辑 .env，填入自己的 DEEPSEEK_API_KEY
 
-# 3. 启动（⚠️ 必须带 --app-dir，模块是平铺导入的）
-.venv/Scripts/python.exe -m uvicorn api:app --app-dir app --port 8000
+# 3. 从项目根目录启动
+.venv/Scripts/python.exe -m uvicorn app.api:app --host 127.0.0.1 --port 8000
 
 # 4. 打开 Swagger 点着测
 # http://localhost:8000/docs
 ```
+
+服务默认仅监听 `127.0.0.1`，v1 没有鉴权，不要直接暴露公网。
 
 ### 三种调用方式
 
