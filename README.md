@@ -11,9 +11,25 @@
 
 | 方式 | 状态 | 如何使用 |
 |---|---|---|
-| 本地部署 | ✓ | 用 Docker Compose 或 Uvicorn 启动服务 |
-| API 调用 | ✓ | 启动后通过 `/docs` 查看并试用 HTTP 接口 |
-| Skill 给 agent | 规划中 | — |
+| ① 本地部署 | ✓ | `docker compose up -d`（或 `tools/start_server.bat`）→ 打开 `http://127.0.0.1:8000/docs` |
+| ② API 调用 | ✓ | `POST /match/score`（上传简历 + JD）→ `GET /match/report/{report_id}` 下载 PDF |
+| ③ Skill 给 agent | ✓ | 把 `skills/` 下的目录复制到你 agent 的 skills 目录；见下 |
+
+**③ 两个 skill，用途不同**：
+
+| skill | 给谁 | 干什么 |
+|---|---|---|
+| [`skills/resume-job-matcher`](skills/resume-job-matcher/SKILL.md) | 想让 agent **会调用**的 | 一条命令：简历 + JD → 100 分报告 + PDF |
+| [`skills/match-scoring-design`](skills/match-scoring-design/SKILL.md) | 想**照着设计**同类系统的 | 六个设计决策 + 反例 + 各自代码落点 |
+
+最短用法（不需要起服务）：
+
+```bash
+python skills/resume-job-matcher/scripts/score.py --local \
+  --resume 简历.pdf --jd jd.txt --out 报告.pdf
+```
+
+加 `--json` 输出机器可读的 `MatchReport`；退出码 `0` 成功 / `2` 输入错误 / `3` 服务不可用 / `4` 内部错误。
 
 ## 隐私提醒
 
