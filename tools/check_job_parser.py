@@ -1,4 +1,4 @@
-"""运行 S1 的三段真实 JD 与三个护栏反例，打印可复核的六项验收结果。
+"""运行 S1/S1.5 的五段真实 JD 与三个护栏反例，打印可复核的八项结果。
 
 真实抽取消耗模型费用；反例只运行纯代码，禁止用模型为护栏判对错。
 可在 PyCharm 右键 Run，也可从任意工作目录使用项目虚拟环境执行。
@@ -11,6 +11,7 @@ import json
 from pathlib import Path
 import sys
 import tokenize
+from types import SimpleNamespace
 
 # tools 与 app 是兄弟目录，直接运行脚本时必须显式添加项目根。
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -18,6 +19,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 from app.job_parser import JobParseResult, guard_job, parse_and_guard
 from app.schemas_match import JobInfo
+from app.scoring_rules import score_hard
 
 
 # 样例逐字来自本次 S1 指令，不使用模型生成的 JD 替换验收输入。
@@ -26,6 +28,8 @@ JD_CASES = (
     ("JD-A", "招聘后端开发工程师，3-5 年经验，熟悉 Go 与 MySQL，了解 Redis 优先，负责订单系统接口开发与性能优化，本科及以上学历。"),
     ("JD-B", "AI 应用工程师（FDE），1-3 年经验，熟练 Python，有 RAG / LLM 落地经验，了解 Dify 或 LangChain，负责客户现场 AI 交付与文档知识库搭建。"),
     ("JD-C", "我们是一家创业公司，正在扩张团队，欢迎有志之士加入，待遇面议。"),
+    ("JD-D", "熟练使用过 DeepSeek、Qwen、OpenAI 等大模型产品的 API；熟悉 RAG，负责知识库搭建"),
+    ("JD-E", "必须会 Go 和 MySQL"),
 )
 # 单次费用上限来自 S1 §二；必须检查实际成本，不能只打印参考价格。
 COST_LIMIT_YUAN = 0.002
@@ -67,6 +71,38 @@ def _assert_extraction(label: str, result: JobParseResult) -> None:
         # 「了解」的归类容许模型根据原文判断，但技术名不能丢失。
         all_skills = skills | {skill.casefold() for skill in data.nice_to_have}
         assert {"dify", "langchain"} <= all_skills
+
+
+def _assert_family_extraction(label: str, result: JobParseResult) -> None:
+    """独立校验新增的举例抽象与无举例并列，不改动 JD-A/B/C 的原断言。"""
+    data = result.data
+    assert data is not None, f"{label} 未返回可解析数据"
+    assert result.raw_text == dict(JD_CASES)[label], "原始 JD 未完整保留"
+    assert 0 <= result.cost_yuan < COST_LIMIT_YUAN, "单次成本未满足 < 0.002 元"
+    assert result.status == "ok" and not result.reasons, "有效 JD 未通过护栏"
+    skills = {"".join(skill.casefold().split()) for skill in data.must_have}
+    if label == "JD-D":
+        # 接受任务书列明的具体上位概念写法，拒绝厂商名继续混在两份列表中。
+        concepts = {"llm", "llmapi", "llm产品", "llm产品api", "llm厂商",
+                    "大模型", "大模型产品", "大模型api", "大模型厂商"}
+        assert len(data.must_have) == 2 and "rag" in skills and len(skills & concepts) == 1
+        all_skills = skills | {"".join(skill.casefold().split()) for skill in data.nice_to_have}
+        assert not ({"deepseek", "qwen", "openai"} & all_skills), "举例厂商不得成为独立技能项"
+        # 用台账中的虚构简历串联真实 JD 抽取与纯规则评分，不调用语义或复核模型。
+        resume = SimpleNamespace(name="李四", years=2.0, skills=["DeepSeek", "RAG", "Chroma"])
+        text = "李四，2 年经验，本科。熟练使用 DeepSeek API 做 RAG 应用，用 Chroma 做向量检索。"
+        hard = score_hard(resume, data, text)
+        assert hard.breakdown["skills"] == 15 and hard.score >= 38
+        assert not [item for item in hard.deductions if item.type == "missing_skill"]
+        print(f"  D-001 串联：技能 {hard.breakdown['skills']}/15；硬性分 {hard.score}/40；无技能扣分")
+    else:
+        # 没有举例语义的 Go 和 MySQL 必须仍为两项，不能归入笼统编程族。
+        assert label == "JD-E" and len(data.must_have) == 2 and skills == {"go", "mysql"}
+        python_only = SimpleNamespace(name=None, years=None, skills=["Python"])
+        hard = score_hard(python_only, data, "熟悉 Python")
+        assert hard.breakdown["skills"] == 0
+        assert any(item.jd_evidence == "Go" and item.deduct > 0 for item in hard.deductions)
+        print("  真缺口串联：只有 Python → Go / MySQL 均未命中；技能 0/15")
 
 
 def _check_guards() -> int:
@@ -120,8 +156,8 @@ def _check_documentation() -> bool:
     """统计新增文件注释与函数文档；无参数，返回达标与否，读取错误继续抛出。"""
     valid = True
     print("\n=== 代码规范检查 ===")
-    # 只统计本块新增的两个代码文件，避免把旧文件的历史注释算作本块成果。
-    for relative in ("app/job_parser.py", "tools/check_job_parser.py"):
+    # 同时检查原抽取模块、验收脚本和本次追加规则的提示词文件。
+    for relative in ("app/job_parser.py", "tools/check_job_parser.py", "app/prompts.py"):
         source = (PROJECT_ROOT / relative).read_text(encoding="utf-8")
         tree = ast.parse(source)
         # 使用 tokenizer 而非搜索 #，避免把字符串内的井号误当成注释。
@@ -140,10 +176,10 @@ def _check_documentation() -> bool:
 
 
 async def main() -> int:
-    """运行六项验收；无参数，返回全过为 0 否则 1，意外编程错误继续抛出。"""
+    """运行原六项及新增两项验收，全过返回 0，意外编程错误继续抛出。"""
     passed = 0
     total_cost = 0.0
-    print("=== S1 JD 结构化抽取验收 ===")
+    print("=== S1 + S1.5 JD 结构化抽取验收 ===")
     for label, jd_text in JD_CASES:
         print(f"\n[{label}] 输入：{jd_text}")
         result = await parse_and_guard(jd_text)
@@ -159,20 +195,25 @@ async def main() -> int:
         print(f"  reasons = {json.dumps(result.reasons, ensure_ascii=False)}")
         print(f"  成本 = {result.cost_yuan:.8f} 元")
         try:
-            _assert_extraction(label, result)
+            # 原验收函数全文保留；新增用例使用独立断言避免改变旧分支。
+            if label in {"JD-D", "JD-E"}:
+                _assert_family_extraction(label, result)
+            else:
+                _assert_extraction(label, result)
         except AssertionError as exc:
-            # 单个抽取不达标仍跑完其他样例，末行才能给出真实 X/6。
+            # 单个抽取不达标仍跑完其他样例，末行才能给出真实 X/8。
             print(f"  FAIL: {exc}")
         else:
             print("  PASS")
             passed += 1
 
-    # 三条护栏不调用模型，故总成本只来自上面的三段真实 JD。
+    # 三条护栏和 S3.5 串联不调用模型，成本只来自五段真实 JD 的抽取。
     passed += _check_guards()
     documentation_ok = _check_documentation()
     # 末行格式来自用户交付要求；规范检查失败同样通过退出码阻止验收成功。
-    print(f"\n通过 {passed}/6；总成本 {total_cost:.8f} 元")
-    return 0 if passed == 6 and documentation_ok else 1
+    print(f"\n总成本 {total_cost:.8f} 元")
+    print(f"通过 {passed}/{len(JD_CASES) + 3}")
+    return 0 if passed == len(JD_CASES) + 3 and documentation_ok else 1
 
 
 if __name__ == "__main__":

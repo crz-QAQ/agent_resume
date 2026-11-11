@@ -1,0 +1,427 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>简历与岗位匹配 · resume-agent</title>
+  <!-- 空图标使用内嵌数据，避免浏览器额外请求站点图标。 -->
+  <link rel="icon" href="data:,">
+  <style>
+    /* 字体全部来自设备，内网打开页面不需要下载任何资源。 */
+    :root { font-family: system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+      color: #203047; background: #f4f6f8; line-height: 1.65; font-size: 15px; }
+    /* border-box 和 min-width 保证表单、网格在窄屏内收缩。 */
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    [hidden] { display: none !important; }
+    /* 内容宽度有上限，桌面阅读明细时不必跨越整块屏幕。 */
+    main { width: min(1080px, 100%); margin: auto; padding: 36px 24px 48px; }
+    h1, h2, h3, p { margin: 0; }
+    h1 { font-size: clamp(27px, 4vw, 36px); letter-spacing: -.04em; line-height: 1.3; }
+    h2 { font-size: 18px; } h3 { font-size: 15px; }
+    /* 品牌标记直接用文字绘制，不依赖图片或图标库。 */
+    .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 24px; font-weight: 650; }
+    .brand-mark { display: grid; place-items: center; width: 36px; height: 36px;
+      border-radius: 10px; color: white; background: #203f66; font-size: 13px; }
+    .local { margin-left: auto; border: 1px solid #d8e0e8; border-radius: 20px;
+      padding: 2px 10px; font-size: 12px; color: #526275; }
+    .intro { color: #637184; margin-top: 12px; }
+    /* 隐私和监听边界在输入前可见，不藏在折叠说明中。 */
+    .privacy { margin: 22px 0 26px; padding: 14px 18px; border-left: 3px solid #b18537;
+      border-radius: 0 8px 8px 0; background: #fff8e8; color: #73551d; font-size: 13px; }
+    .workspace { display: grid; grid-template-columns: 350px minmax(0, 1fr); gap: 22px; align-items: start; }
+    /* 表单与结果各自收缩，外层不用隐藏溢出掩盖宽度问题。 */
+    .panel { background: white; border: 1px solid #dfe5eb; border-radius: 14px; padding: 24px; min-width: 0; }
+    .step { color: #788695; font-size: 11px; font-weight: 700; letter-spacing: .12em; margin-bottom: 5px; }
+    /* 所有输入都有可点击的原生 label，保留键盘与读屏支持。 */
+    label { display: block; font-weight: 650; margin: 22px 0 9px; }
+    input, textarea, button { font: inherit; max-width: 100%; }
+    input[type="file"] { width: 100%; padding: 13px 10px; border: 1px dashed #aebdcd;
+      background: #f7f9fc; border-radius: 8px; font-size: 12px; }
+    input::file-selector-button { border: 1px solid #c9d4df; border-radius: 5px;
+      padding: 5px 9px; margin-right: 8px; background: white; color: #203f66; cursor: pointer; }
+    textarea { display: block; width: 100%; min-height: 220px; resize: vertical; padding: 12px;
+      border: 1px solid #bcc9d6; border-radius: 8px; color: inherit; background: white; }
+    /* 聚焦轮廓不依赖颜色变化，键盘操作时能看清当前位置。 */
+    :focus-visible { outline: 3px solid #8bb6e2; outline-offset: 3px; }
+    .hint, .counter { font-size: 12px; color: #68788a; margin-top: 8px; }
+    /* 计数字宽固定，输入时不会因数字宽窄导致右边缘跳动。 */
+    .counter { text-align: right; font-variant-numeric: tabular-nums; }
+    .invalid { color: #ad3d35; }
+    .button { display: inline-flex; justify-content: center; align-items: center; gap: 8px;
+      padding: 11px 18px; border: 1px solid #254b77; border-radius: 8px; background: #254b77;
+      color: white; text-decoration: none; font-weight: 650; cursor: pointer; text-align: center; }
+    /* 禁用态有原生 disabled 语义，不仅仅降低透明度。 */
+    button.button { width: 100%; margin-top: 22px; }
+    .button:hover { background: #1b3a60; }
+    .button:disabled { background: #e0e6ed; border-color: #e0e6ed; color: #7b8998; cursor: not-allowed; }
+    .error, .status { margin-top: 16px; padding: 12px 14px; border-radius: 8px;
+      overflow-wrap: anywhere; white-space: pre-line; font-size: 13px; }
+    .error, .status.failed { color: #982e29; background: #fff0ee; border: 1px solid #edbbb6; }
+    /* 提示条同时含文字原因，颜色不作为唯一的状态信号。 */
+    .status.needs-review { color: #795411; background: #fff8df; border: 1px solid #e7cf86; }
+    /* 空态与结果共用右侧位置，提交前也明确解释这里将出现什么。 */
+    .empty { min-height: 436px; display: grid; place-content: center; text-align: center; padding: 32px; }
+    .empty-icon { margin: 0 auto 18px; font-size: 28px; width: 64px; height: 64px;
+      display: grid; place-items: center; color: #607c9c; background: #eef3f9; border-radius: 18px; }
+    .empty p { margin-top: 12px; max-width: 300px; color: #738195; font-size: 13px; }
+    /* 档位仅决定视觉颜色；业务档位文字始终读取后端报告。 */
+    .summary { --tone: #2567aa; border-top: 4px solid var(--tone); }
+    .summary[data-tone="green"] { --tone: #23734d; }
+    .summary[data-tone="blue"] { --tone: #2567aa; }
+    .summary[data-tone="orange"] { --tone: #ac6416; }
+    .summary[data-tone="red"] { --tone: #ae3b35; }
+    .score-row { display: flex; align-items: center; gap: 22px; margin: 18px 0 26px; flex-wrap: wrap; }
+    .score { color: var(--tone); font-size: 80px; font-weight: 750; line-height: 1; letter-spacing: -.06em; }
+    .score small { font-size: 17px; font-weight: 450; letter-spacing: 0; color: #758294; }
+    /* 窄屏允许总分和档位换行，避免大字号挤出容器。 */
+    .verdict { color: var(--tone); font-size: 24px; font-weight: 700; }
+    /* 进度条使用原生 progress；读屏可获取 max 与 value。 */
+    .metric { margin-top: 18px; }
+    .metric label { display: flex; justify-content: space-between; margin: 0 0 7px; font-size: 13px; }
+    progress { display: block; width: 100%; height: 9px; border: 0; border-radius: 10px;
+      overflow: hidden; background: #eaf0f5; accent-color: #426d9c; }
+    progress::-webkit-progress-bar { background: #eaf0f5; }
+    progress::-webkit-progress-value { background: #426d9c; border-radius: 10px; }
+    progress::-moz-progress-bar { background: #426d9c; border-radius: 10px; }
+    /* 明细在输入和总览之后按阅读顺序展开，不要求用户跳页。 */
+    #details { margin-top: 22px; display: grid; gap: 18px; }
+    .section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+    .note { color: #718093; font-size: 12px; }
+    .legend { font-size: 12px; color: #67788b; margin-bottom: 15px; }
+    /* 长 JD、文件名和无空格字符串都允许换行，不能撑大页面。 */
+    table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 13px; }
+    th, td { text-align: left; vertical-align: top; padding: 12px 9px; border-bottom: 1px solid #e7ecf1;
+      overflow-wrap: anywhere; word-break: break-word; }
+    th { font-size: 12px; color: #65758a; background: #f7f9fb; font-weight: 600; }
+    td:first-child { font-weight: 550; }
+    /* 表格没有记录时仍保留明确的空态，且不制造虚假的扣分行。 */
+    .empty-row { color: #778597; font-weight: 400 !important; padding: 18px 9px; }
+    .mark { font-weight: 750; } .mark.yes { color: #23734d; } .mark.no { color: #ae3b35; }
+    .mark.unknown { color: #946111; } .mark.na { color: #788595; }
+    /* 缺失、不符与未知分开显示，未知信息不能误写为不合格。 */
+    .gaps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+    .gaps h3 { margin-bottom: 12px; }
+    ul, ol { margin: 0; padding-left: 20px; }
+    .evidence { padding-bottom: 14px; overflow-wrap: anywhere; font-size: 13px; }
+    .evidence p { color: #718093; margin-top: 4px; font-size: 12px; }
+    .suggestion { margin: 12px 0; overflow-wrap: anywhere; }
+    /* 来源标签与正文分开，长建议自然换行，标签自身保持完整。 */
+    .tag { display: inline-block; background: #edf3fa; color: #345e8d; font-size: 12px;
+      border-radius: 4px; padding: 1px 7px; margin-right: 8px; white-space: nowrap; }
+    .tag.gap { background: #fff2e4; color: #986224; }
+    .download { margin-top: 24px; text-align: right; }
+    footer { margin-top: 28px; text-align: center; color: #7a8796; font-size: 12px; }
+    /* 小屏先表单后结果，明细表转为带字段标签的卡片，避免横向拖动。 */
+    @media (max-width: 740px) {
+      main { padding: 24px 16px 32px; } .workspace { grid-template-columns: minmax(0, 1fr); }
+      .panel { padding: 20px; } .empty { min-height: 220px; } .gaps { grid-template-columns: minmax(0, 1fr); }
+      .section-head { align-items: flex-start; flex-wrap: wrap; }
+      table, tbody, tr, td { display: block; width: 100%; } thead { display: none; }
+      tr { border: 1px solid #e0e7ee; border-radius: 8px; margin-top: 12px; padding: 5px 12px; }
+      td { padding: 8px 0; } td:last-child { border: 0; }
+      td::before { content: attr(data-label); display: block; color: #788698; font-size: 11px; font-weight: 400; }
+      /* 空态无需重复字段名，下载操作则占满移动端可点击宽度。 */
+      .empty-row::before { display: none; } .download .button { width: 100%; }
+    }
+    /* 减少动态偏好的用户不需要观看任何动画；页面本身没有持续动画。 */
+    @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; } }
+  </style>
+</head>
+<body>
+  <main>
+    <!-- 抬头先说明用途与隐私，再展示上传控件。 -->
+    <header>
+      <div class="brand"><span class="brand-mark" aria-hidden="true">RA</span> resume-agent <span class="local">本机使用</span></div>
+      <h1>简历与岗位，有多匹配？</h1>
+      <p class="intro">上传一份简历，粘贴岗位描述，查看分数与依据，再下载 PDF 报告。</p>
+      <p class="privacy"><strong>隐私提示：</strong>简历含敏感信息，请勿上传到公共环境。本页不保存输入，刷新即清空。服务应只监听 127.0.0.1；v1 无鉴权，请勿暴露公网。</p>
+    </header>
+    <div class="workspace">
+      <!-- 原生表单使用现有接口字段名，不增加新的后端协议。 -->
+      <form id="match-form" class="panel" autocomplete="off" novalidate>
+        <p class="step">01 / 提交材料</p><h2>先了解这份简历</h2>
+        <label for="resume">简历文件</label>
+        <input id="resume" name="file" type="file" accept=".pdf,.docx" required aria-describedby="file-hint">
+        <p id="file-hint" class="hint">PDF / DOCX，最大 10MB；扫描件需先转换为文本版。</p>
+        <label for="jd">岗位描述（JD）</label>
+        <textarea id="jd" name="jd_text" required minlength="20" aria-describedby="jd-count jd-hint"
+          placeholder="粘贴完整岗位描述，包括工作年限、必备技能和岗位职责。"></textarea>
+        <p id="jd-count" class="counter">0 字 / 至少 20 字</p>
+        <p id="jd-hint" class="hint invalid">请填写至少 20 字的岗位描述。</p>
+        <!-- 按钮初始禁用，脚本就绪前也不能提交不完整材料。 -->
+        <button id="submit" class="button" type="submit" disabled>开始评分</button>
+        <p id="request-error" class="error" role="alert" hidden></p>
+      </form>
+      <div>
+        <!-- 空态在请求期间保留，完成后由真实总览替换。 -->
+        <section id="empty" class="panel empty" aria-label="等待评分">
+          <div class="empty-icon" aria-hidden="true">≋</div><h2>让每一分都有依据</h2>
+          <p>提交后，这里会展示总分、三项得分，以及需要补充或人工确认的地方。</p>
+        </section>
+        <section id="summary" class="panel summary" aria-labelledby="result-heading" hidden>
+          <p class="step">02 / 匹配结果</p><h2 id="result-heading" tabindex="-1">本次评分</h2>
+          <!-- 只有正式报告的数字会填入结果，不展示示例分数。 -->
+          <div class="score-row"><div class="score"><span id="total"></span><small> / 100</small></div>
+            <div><p id="verdict" class="verdict"></p><p class="note">分数供参考，请结合证据判断</p></div></div>
+          <div class="metric"><label for="hard"><span>硬性条件</span><span id="hard-value"></span></label><progress id="hard" max="40" value="0"></progress></div>
+          <div class="metric"><label for="semantic"><span>语义相近</span><span id="semantic-value"></span></label><progress id="semantic" max="30" value="0"></progress></div>
+          <div class="metric"><label for="llm"><span>LLM 复核</span><span id="llm-value"></span></label><progress id="llm" max="30" value="0"></progress></div>
+          <!-- 状态条保留原因；待复核与失败各有独立的语义和颜色。 -->
+          <div id="report-status" class="status" role="status" hidden></div>
+        </section>
+      </div>
+    </div>
+    <!-- 明细只渲染报告字段及必要证据，不读取或展示简历正文。 -->
+    <div id="details" hidden>
+      <section class="panel"><div class="section-head"><h2>扣分理由</h2><span class="note">对照岗位要求，逐项核对</span></div>
+        <table aria-label="扣分理由"><thead><tr><th>扣分项</th><th>扣分</th><th>JD 依据</th><th>简历现状</th><th>严重度</th></tr></thead><tbody id="deductions"></tbody></table>
+      </section>
+      <section class="panel"><div class="section-head"><h2>语义覆盖明细</h2></div>
+        <p class="legend">✓ 已覆盖　✗ 未覆盖　? 待确认　— 未要求 / 不适用</p>
+        <table aria-label="语义覆盖明细"><thead><tr><th>岗位职责</th><th>余弦相似度</th><th>重排分</th><th>覆盖</th><th>匹配证据</th></tr></thead><tbody id="semantic-items"></tbody></table>
+      </section>
+      <section class="panel"><div class="section-head"><h2>缺失与待确认</h2><span class="note">没有写明的信息，需要人工核对</span></div>
+        <div class="gaps"><div><h3>缺失</h3><ul id="missing"></ul></div><div><h3>不符</h3><ul id="mismatches"></ul></div><div><h3>待确认</h3><ul id="unknown"></ul></div></div>
+      </section>
+      <section class="panel"><div class="section-head"><h2>建议补充</h2><span class="note">只补充真实经历与事实</span></div><ol id="suggestions"></ol></section>
+    </div>
+    <!-- 下载地址只由本次 report_id 构造，不要求用户复制标识。 -->
+    <div id="download-area" class="download" hidden><a id="download" class="button" download>下载 PDF 报告</a><p class="hint">报告保留 30 分钟，过期后请重新评分。</p></div>
+    <footer>resume-agent · 评分辅助判断，最终决定由人作出</footer>
+  </main>
+  <script>
+    "use strict";
+    // 所有状态只存在本次页面内存中，不写入浏览器持久存储。
+    const form = document.getElementById("match-form");
+    const resume = document.getElementById("resume");
+    const jd = document.getElementById("jd");
+    const submit = document.getElementById("submit");
+    const errorBox = document.getElementById("request-error");
+    let busy = false;
+
+    /** 仅接受可展示的标量，避免把结构化对象隐式转为字符串。 */
+    function readable(value, fallback = "—") {
+      // 不接受对象，即使异常响应误把某个字段返回成字典也安全降级。
+      return typeof value === "string" && value.trim() ? value :
+        typeof value === "number" && Number.isFinite(value) ? String(value) : fallback;
+    }
+    /** 将后端字符串、校验数组及嵌套错误转换为人读说明。 */
+    function detailMessage(value, fallback) {
+      if (typeof value === "string" && value.trim()) return value;
+      const messages = [];
+      // FastAPI 的 422 detail 可能是数组，每条通常含 msg 与 loc。
+      if (Array.isArray(value)) {
+        for (const item of value) {
+          const message = detailMessage(item, "");
+          if (message && !messages.includes(message)) messages.push(message);
+        }
+      } else if (value && typeof value === "object") {
+        // 仅取已知消息字段；不把任意对象或请求体 JSON 展示到页面。
+        for (const key of ["msg", "message", "detail", "error", "reason"]) {
+          if (value[key] != null) {
+            const message = detailMessage(value[key], "");
+            if (message) messages.push(message);
+          }
+        }
+      }
+      return messages.length ? messages.join("；") : fallback;
+    }
+    /** 输入校验先于 fetch，按与后端一致的去首尾空白口径计字。 */
+    function validate() {
+      const count = Array.from(jd.value.trim()).length;
+      const file = resume.files[0];
+      const supported = !!file && /\.(pdf|docx)$/i.test(file.name);
+      // 用代码点计数，避免 emoji 被 JS 的 UTF-16 长度算作两个字。
+      document.getElementById("jd-count").textContent = count + " 字 / 至少 20 字";
+      document.getElementById("jd-hint").textContent = count < 20 ? "请填写至少 20 字的岗位描述。" : "岗位描述已满足字数要求。";
+      document.getElementById("jd-hint").classList.toggle("invalid", count < 20);
+      document.getElementById("file-hint").textContent = file && !supported ? "仅支持 .pdf 或 .docx，请重新选择。" : "PDF / DOCX，最大 10MB；扫描件需先转换为文本版。";
+      document.getElementById("file-hint").classList.toggle("invalid", !!file && !supported);
+      // 单独检查 busy，快速双击或脚本重复触发也不能创建第二次请求。
+      submit.disabled = busy || !supported || count < 20;
+      return supported && count >= 20;
+    }
+    /** 材料变化后撤下旧结果和旧下载地址，避免混淆两次评分。 */
+    function clearResult() {
+      for (const id of ["summary", "details", "download-area"]) document.getElementById(id).hidden = true;
+      document.getElementById("empty").hidden = false;
+      document.getElementById("download").removeAttribute("href");
+      // 不在页面上保留可误点的旧 PDF 地址。
+      errorBox.hidden = true;
+    }
+    /** 对输入变化同步更新校验，并清理与旧材料对应的结果。 */
+    function inputChanged() { clearResult(); validate(); }
+    /** 刷新和浏览器返回时清空材料，不从上一次会话恢复简历或 JD。 */
+    function resetPage() { form.reset(); clearResult(); validate(); }
+    /** 创建只含纯文本的节点，服务端文本不作为 HTML 执行。 */
+    function element(tag, text, className = "") {
+      // 服务端证据中即使带有标签字符，也只会显示成文字。
+      const node = document.createElement(tag);
+      node.textContent = readable(text, "");
+      if (className) node.className = className;
+      return node;
+    }
+    /** 生成可响应布局的表格单元格，移动端用 data-label 提示字段。 */
+    function cell(row, label, value, className = "") {
+      const node = element("td", readable(value), className);
+      node.dataset.label = label;
+      // 与表头文字相同的标签在小屏卡片模式下重新提供上下文。
+      row.append(node);
+    }
+    /** 空表也给出明确说明，不让结果看起来像渲染失败。 */
+    function emptyTable(target, message, columns) {
+      const row = document.createElement("tr");
+      const node = element("td", message, "empty-row");
+      // 桌面空态横跨全部列；移动端由样式自然变为一张卡片。
+      node.colSpan = columns; row.append(node); target.append(row);
+    }
+    /** 原样展示扣分与双方证据，不在浏览器重新计算扣分。 */
+    function renderDeductions(items) {
+      const target = document.getElementById("deductions"); target.replaceChildren();
+      if (!items.length) { emptyTable(target, "无扣分项", 5); return; }
+      // 严重度仅翻译标签，不参与得分或档位判断。
+      const severity = {high: "高", medium: "中", low: "低"};
+      for (const item of items) {
+        const row = document.createElement("tr");
+        // 正数扣分加负号，零扣分显示横线，不把缺口再次算作扣分。
+        cell(row, "扣分项", item.item); cell(row, "扣分", Number.isFinite(item.deduct) ? (item.deduct > 0 ? "−" + item.deduct : "—") : "—");
+        cell(row, "JD 依据", item.jd_evidence); cell(row, "简历现状", item.resume_evidence);
+        cell(row, "严重度", severity[item.severity] || "—"); target.append(row);
+      }
+    }
+    /** 透传覆盖判定，未知与未要求有独立符号，不依据展示分数推断。 */
+    function coverage(item) {
+      if (item.status === "not_required" || item.type === "not_required") return ["—", "na"];
+      if (item.type === "years_unknown" || item.type === "education_unknown") return ["?", "unknown"];
+      if (item.covered === true) return ["✓", "yes"];
+      if (item.covered === false) return ["✗", "no"];
+      // 缺失判定不回填 false，必须保持问号语义。
+      return ["?", "unknown"];
+    }
+    /** 相似度和重排分仅格式化展示，缺测不伪装为零。 */
+    function decimal(value) { return typeof value === "number" && Number.isFinite(value) ? value.toFixed(3) : "—"; }
+    /** 展示后端逐条语义明细，并保留上游的覆盖状态。 */
+    function renderSemantic(items) {
+      const target = document.getElementById("semantic-items"); target.replaceChildren();
+      if (!items.length) { emptyTable(target, "无语义覆盖明细", 5); return; }
+      for (const item of items) {
+        const row = document.createElement("tr"); const [mark, tone] = coverage(item);
+        // 三位小数仅用于阅读，不反过来影响覆盖结果。
+        cell(row, "岗位职责", item.item); cell(row, "余弦相似度", decimal(item.best_sim));
+        cell(row, "重排分", decimal(item.rerank_score)); cell(row, "覆盖", mark, "mark " + tone);
+        cell(row, "匹配证据", item.best_sentence); target.append(row);
+      }
+    }
+    /** 给缺口和待确认项展示最小必要证据，不展示简历全文或完整解析结构。 */
+    function renderEvidence(id, items, empty) {
+      const target = document.getElementById(id); target.replaceChildren();
+      if (!items.length) { target.append(element("li", empty, "note")); return; }
+      for (const item of items) {
+        const node = element("li", readable(item.item), "evidence");
+        // 未知信息显式带问号，不能在界面上被当作未通过。
+        if (id === "unknown") node.prepend(element("span", "? ", "mark unknown"));
+        node.append(element("p", "JD：" + readable(item.jd_evidence)));
+        node.append(element("p", "简历：" + readable(item.resume_evidence))); target.append(node);
+      }
+    }
+    /** 保留建议来源标签，未标注来源时不伪称为模型建议。 */
+    function renderSuggestions(items) {
+      const target = document.getElementById("suggestions"); target.replaceChildren();
+      for (const value of items) {
+        // 不渲染对象型建议，防止损坏响应变成难懂的对象字符串。
+        if (typeof value !== "string" || !value.trim()) continue;
+        const match = value.match(/^\[(LLM|缺口)\]\s*/);
+        // 已有标签保留原样；没有标签的建议明确说明来源未标注。
+        const node = element("li", "", "suggestion");
+        node.append(element("span", match ? "[" + match[1] + "]" : "来源未标注", match && match[1] === "缺口" ? "tag gap" : "tag"));
+        node.append(document.createTextNode(match ? value.slice(match[0].length) : value)); target.append(node);
+      }
+      if (!target.childElementCount) target.append(element("li", "暂无补充建议", "note"));
+    }
+    /** 校验响应的关键结构，再将后端报告映射到固定页面区域。 */
+    function renderReport(payload) {
+      const report = payload && payload.report; const score = report && report.score;
+      // 在任何显示操作前确认总分和报告标识，拒绝伪成功响应。
+      if (!score || !Number.isInteger(score.total) || score.total < 0 || score.total > 100 ||
+          typeof payload.report_id !== "string" || !payload.report_id.trim()) throw new Error("服务返回的报告不完整，请重新评分。");
+      // 只检查显示所需字段；不信任后端多出的 raw_text 等正文属性。
+      for (const [key, max] of [["hard", 40], ["semantic", 30], ["llm", 30]]) {
+        const value = score.breakdown && score.breakdown[key];
+        if (typeof value !== "number" || !Number.isFinite(value) || value < 0 || value > max) throw new Error("服务返回的分项得分不完整，请重新评分。");
+        document.getElementById(key).value = value;
+        // 显示的是报告中的分项原值，没有前端权重或归一化计算。
+        document.getElementById(key + "-value").textContent = value + " / " + max;
+      }
+      document.getElementById("total").textContent = score.total;
+      document.getElementById("verdict").textContent = readable(report.verdict, "待确认");
+      // 颜色按 PRD 的四档阈值；不在前端生成业务档位或修改总分。
+      document.getElementById("summary").dataset.tone = score.total >= 85 ? "green" : score.total >= 70 ? "blue" : score.total >= 55 ? "orange" : "red";
+      const status = document.getElementById("report-status"); status.hidden = true;
+      // 每次成功响应重新设定状态条，不能沿用上一份报告的警告颜色。
+      if (report.status === "needs_review" || report.status === "failed") {
+        const heading = report.status === "failed" ? "分析未完成：" : "需要人工复核：";
+        status.textContent = heading + detailMessage(report.reasons, "部分信息需要核对，请结合下方证据判断。");
+        status.className = "status " + (report.status === "failed" ? "failed" : "needs-review"); status.hidden = false;
+      }
+      renderDeductions(Array.isArray(report.deductions) ? report.deductions : []);
+      renderSemantic(Array.isArray(report.semantic_items) ? report.semantic_items : []);
+      const unknown = [], mismatches = [];
+      for (const item of Array.isArray(report.mismatches) ? report.mismatches : []) {
+        // 分类只用上游类型，年限和学历未知不混入不符合列表。
+        if (item.type === "years_unknown" || item.type === "education_unknown") unknown.push(item);
+        else mismatches.push(item);
+      }
+      renderEvidence("missing", Array.isArray(report.missing) ? report.missing : [], "无缺失项");
+      renderEvidence("mismatches", mismatches, "无不符项"); renderEvidence("unknown", unknown, "无待确认项");
+      renderSuggestions(Array.isArray(report.suggestions) ? report.suggestions : []);
+      // 固定同源下载端点，报告标识只能成为一个编码后的路径段。
+      document.getElementById("download").href = "/match/report/" + encodeURIComponent(payload.report_id);
+      document.getElementById("empty").hidden = true;
+      for (const id of ["summary", "details", "download-area"]) document.getElementById(id).hidden = false;
+      document.getElementById("result-heading").focus({preventScroll: true});
+    }
+    /** 提交现有 multipart 接口；所有错误都收口为可读提示并恢复按钮。 */
+    async function scoreResume(event) {
+      event.preventDefault();
+      if (busy || !validate()) return;
+      clearResult(); busy = true; submit.disabled = true;
+      // 锁定材料以避免请求过程中修改输入，结果却属于上一份材料。
+      resume.disabled = true; jd.disabled = true; form.setAttribute("aria-busy", "true");
+      submit.textContent = "正在分析（10-30 秒）";
+      const data = new FormData(); data.append("file", resume.files[0]); data.append("jd_text", jd.value);
+      // 不手填 multipart Content-Type，浏览器必须生成与请求体一致的边界。
+      try {
+        let response;
+        // 网络连接错误与 HTTP 输入错误分别呈现，不给用户原始 JS 异常。
+        try { response = await fetch("/match/score", {method: "POST", body: data}); }
+        catch { throw new Error("无法连接服务"); }
+        let payload;
+        // 非 JSON 响应也显示错误信息，避免解析异常逃逸导致页面空白。
+        try { payload = await response.json(); }
+        catch { throw new Error(response.ok ? "服务返回了无法读取的报告，请重新评分。" : "服务响应异常，请稍后重试。"); }
+        if (!response.ok) {
+          // 优先展示后端 detail，只有缺少可读文本时才使用本地提示。
+          const fallback = response.status === 413 ? "文件超过 10MB 上传上限。" : response.status === 422 ? "简历或岗位描述无法解析，请检查输入。" : "评分服务暂时不可用，请稍后重试。";
+          throw new Error(detailMessage(payload && payload.detail, fallback));
+        }
+        renderReport(payload);
+      } catch (error) {
+        // 渲染异常也不能白屏；旧结果和下载入口在失败时统一撤下。
+        clearResult(); errorBox.textContent = readable(error && error.message, "评分失败，请检查输入后重试。"); errorBox.hidden = false;
+      } finally {
+        // 成功和失败都恢复控件，允许修改材料后再次提交。
+        busy = false; resume.disabled = false; jd.disabled = false;
+        form.removeAttribute("aria-busy"); submit.textContent = "开始评分"; validate();
+      }
+    }
+    // 具名处理器便于逐项测试；不使用内联事件或动态执行后端字符串。
+    form.addEventListener("submit", scoreResume);
+    resume.addEventListener("change", inputChanged); jd.addEventListener("input", inputChanged);
+    window.addEventListener("pageshow", resetPage);
+    // 首次脚本执行也初始化一次，不依赖浏览器是否发送恢复事件。
+    resetPage();
+  </script>
+</body>
+</html>

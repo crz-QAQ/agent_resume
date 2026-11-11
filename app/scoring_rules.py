@@ -20,6 +20,31 @@ EDU_LEVEL = {"博士": 5, "硕士": 4, "研究生": 4, "本科": 3, "学士": 3,
 SKILL_ALIASES = {"golang": "go", "go语言": "go", "postgres": "postgresql",
                  "js": "javascript", "ts": "typescript", "k8s": "kubernetes"}
 
+# PRD v1.3 §2.2 / S3.5 任务书 §二.1：固定同族成员，禁止让模型判定同族。
+# 族表只含已评审的四族，Go/Python 等无族技能不允许合并。
+SKILL_FAMILIES: dict[str, set[str]] = {
+    "llm_providers": {"deepseek", "qwen", "openai", "gpt", "chatgpt", "claude",
+                      "gemini", "通义", "文心", "豆包", "kimi", "glm", "智谱",
+                      "llama", "mistral"},
+    "message_queue": {"kafka", "rabbitmq", "rocketmq", "pulsar"},
+    "vector_db": {"chroma", "chromadb", "milvus", "faiss", "qdrant", "weaviate", "pgvector"},
+    "cloud": {"aws", "阿里云", "腾讯云", "华为云", "azure", "gcp"},
+}
+
+# PRD v1.3 §2.2：上位概念反查同一族，承接 S1.5 的抽取结果。
+# 比较前使用 _normalize_skill，让 LLM 产品 API 的大小写和空格不影响归属。
+FAMILY_ALIASES: dict[str, set[str]] = {
+    "llm_providers": {"llm", "llm api", "llm 产品", "llm 产品 api", "llm 厂商",
+                      "大模型", "大模型产品", "大模型 api", "大模型厂商"},
+    "message_queue": {"消息队列", "mq"},
+    "vector_db": {"向量数据库", "向量库"},
+    "cloud": {"云平台", "云厂商", "云服务"},
+}
+
+# PRD v1.3 §2.2：族代表名固定，禁止从无序 set 随机选成员充当族名。
+FAMILY_LABELS = {"llm_providers": "LLM 产品", "message_queue": "消息队列",
+                 "vector_db": "向量数据库", "cloud": "云平台"}
+
 
 @dataclass
 class HardScore:
@@ -38,6 +63,37 @@ def _normalize_skill(skill: str) -> str:
     # split 同时处理空格、换行与制表符，避免格式差异造成未命中。
     normalized = "".join(skill.lower().split())
     return SKILL_ALIASES.get(normalized, normalized)
+
+
+def _skill_family(normalized: str) -> str | None:
+    """先按具体成员、再按上位概念别名查族；未命中保持无族。"""
+    for family, members in SKILL_FAMILIES.items():
+        if normalized in members:
+            return family
+    # 上位概念也去内部空白，避免提示词修正后反而让 DeepSeek 无法命中。
+    for family, aliases in FAMILY_ALIASES.items():
+        if normalized in {_normalize_skill(alias) for alias in aliases}:
+            return family
+    return None
+
+
+def _group_required_skills(skills: list[str]) -> list[tuple[str | None, list[str]]]:
+    """仅合并同族必备项，按输入顺序保留各组原始名称作为扣分依据。"""
+    groups: list[tuple[str | None, list[str]]] = []
+    family_names: dict[str, list[str]] = {}
+    for skill in skills:
+        family = _skill_family(_normalize_skill(skill))
+        if family is None:
+            # 无族条目逐项计入分母，沿用原口径而不是扩大同义词或族表。
+            groups.append((None, [skill]))
+        elif family not in family_names:
+            # 两处共享本地名称列表，后续同族项只追加说明，不新增分母。
+            family_names[family] = [skill]
+            groups.append((family, family_names[family]))
+        elif skill not in family_names[family]:
+            family_names[family].append(skill)
+    # 字典和列表保留首次出现顺序；输出不依赖集合的哈希顺序。
+    return groups
 
 
 def _education_level(text: str) -> int | None:
@@ -115,13 +171,21 @@ def score_hard(resume: ResumeInfo, job: JobInfo, resume_text: str) -> HardScore:
     # 仅归一化技能名；原文严格按任务书只转小写，保留子串匹配口径。
     resume_skills = {_normalize_skill(skill) for skill in resume.skills}
     lower_text = resume_text.lower()
-    missing = [skill for skill in job.must_have
-               if _normalize_skill(skill) not in resume_skills
-               and _normalize_skill(skill) not in lower_text]
+    required = _group_required_skills(job.must_have)
+    missing: list[str] = []
+    for family, names in required:
+        # 族内任一具体成员即可命中；泛称本身不能凭空证明用过某个产品。
+        members = SKILL_FAMILIES[family] if family else {_normalize_skill(names[0])}
+        if any(member in resume_skills or member in lower_text for member in members):
+            continue
+        # 举例仅使用输入里的原始条目，不补造 JD 未提及的厂商名称。
+        # 只有上位概念的输入也保留该原项，方便回查抽取字段。
+        label = f"{FAMILY_LABELS[family]}（举例：{'、'.join(names)}）" if family else names[0]
+        missing.append(label)
     skills_score = 15
-    if job.must_have:
-        # 分母保持 JD 条目数；只对简历技能建集合，避免改变岗位权重。
-        count = len(job.must_have)
+    if required:
+        # PRD v1.3 §2.2：分母只在同族内部去重，其余条目继续独立计分。
+        count = len(required)
         # int(x + 0.5) 执行四舍五入，避免默认的银行家舍入使 .5 向偶数取整。
         skills_score = int(15 * (count - len(missing)) / count + 0.5)
         per_missing = int(15 / count + 0.5)
@@ -135,6 +199,8 @@ def score_hard(resume: ResumeInfo, job: JobInfo, resume_text: str) -> HardScore:
             ))
             remaining -= deduct
 
+    # 技能子项单独校验，避免其他子项的扣分偶然抵消技能金额错误。
+    assert sum(d.deduct for d in deductions if d.type == "missing_skill") == 15 - skills_score
     # 每次调用都执行守恒断言，避免只在验收样本里碰巧对上总分。
     breakdown = {"years": years_score, "education": education_score, "skills": skills_score}
     score = sum(breakdown.values())

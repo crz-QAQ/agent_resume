@@ -1,7 +1,8 @@
 """HTTP协议适配：保留七个旧接口，匹配业务全部委托独立编排模块。"""
 
 from fastapi import APIRouter, FastAPI, File, Form, HTTPException, UploadFile
-from fastapi.responses import Response
+from fastapi.responses import FileResponse, Response
+from pathlib import Path
 from pydantic import BaseModel, Field
 from typing import Optional
 from urllib.parse import quote
@@ -79,8 +80,15 @@ def fake_llm_extract(text: str) -> dict :
 @app.get("/",tags=["健康检查"])
 async def health() -> dict:
     """返回原有健康检查，供本地服务和验收探活。"""
-    return {"message":"服务已启动","docs":"/docs"}
+    return {"message":"服务已启动","docs":"/docs","ui":"/ui"}
     # 健康检查不访问模型，模型依赖故障时仍可用于确认进程可用。
+
+
+@app.get("/ui", response_class=FileResponse, tags=["网页"])
+async def match_ui() -> FileResponse:
+    """返回本地单文件评分网页，仅复用已有匹配与报告下载接口。"""
+    # 相对模块定位静态文件，不依赖启动目录或机器绝对路径。
+    return FileResponse(Path(__file__).parent / "static" / "index.html", media_type="text/html")
 
 
 @app.post("/resume",response_model=ResumeOut,tags=["简历"])

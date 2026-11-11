@@ -7,13 +7,15 @@
 > 后端出身（Go/Gin + PHP，3 年）转 AI 交付方向，这是补「LLM 应用交付」这一层的实操项目。
 > 关注点不是「让模型更聪明」，而是 **让 AI 的结果可验证、可拦截、可解释成本**。
 
-## 三种使用方式
+## 五种使用方式
 
 | 方式 | 状态 | 如何使用 |
 |---|---|---|
 | ① 本地部署 | ✓ | `docker compose up -d`（或 `tools/start_server.bat`）→ 打开 `http://127.0.0.1:8000/docs` |
 | ② API 调用 | ✓ | `POST /match/score`（上传简历 + JD）→ `GET /match/report/{report_id}` 下载 PDF |
 | ③ Skill 给 agent | ✓ | 把 `skills/` 下的目录复制到你 agent 的 skills 目录；见下 |
+| ④ MCP 给客户端 | ✓ | 可选安装 `requirements-mcp.txt`，以 stdio 运行 `mcp_server.py`；见下 |
+| ⑤ 单页网页 | ✓ | 打开 `http://127.0.0.1:8000/ui`，上传简历、粘贴 JD、看分数、下载 PDF |
 
 **③ 两个 skill，用途不同**：
 
@@ -30,6 +32,34 @@ python skills/resume-job-matcher/scripts/score.py --local \
 ```
 
 加 `--json` 输出机器可读的 `MatchReport`；退出码 `0` 成功 / `2` 输入错误 / `3` 服务不可用 / `4` 内部错误。
+
+**④ Claude Desktop / 支持 MCP 的客户端**：先按「快速开始」安装主依赖并配置 `.env`，再执行
+`python -m pip install -r requirements-mcp.txt`。使用 mcp 2.x 的 `MCPServer`；升级 3.x 前先读
+[migration guide](https://py.sdk.modelcontextprotocol.io/v2/migration/)。
+
+在 `claude_desktop_config.json` 中配置（将占位路径替换为克隆目录，Windows 路径使用 `/`）：
+
+```json
+{
+  "mcpServers": {
+    "resume-agent": {
+      "command": "<项目绝对路径>/.venv/Scripts/python.exe",
+      "args": ["<项目绝对路径>/mcp_server.py"]
+    }
+  }
+}
+```
+
+macOS / Linux 的解释器路径改用 `<项目绝对路径>/.venv/bin/python`。MCP 提供
+`parse_resume(resume_path)`、`score_match(resume_path, jd_text)`、
+`make_report(resume_path, jd_text, out_path=None)`，相对路径以项目根目录为基准，简历支持 PDF/DOCX、上限 10MB。
+解析结果只含结构化字段和字数；评分返回既有 `MatchReport`（含逐项证据），完整简历正文不进入工具结果。
+省略 `out_path` 时 PDF 保存到 `reports/`。运行 `python tools/verify_mcp.py` 做真实 stdio 验收与 CLI 对账；
+只检查协议和输入护栏可加 `--offline`，该模式不调用模型。
+
+**⑤ 单页网页（给非技术同事）**：启动服务后打开 `http://127.0.0.1:8000/ui`，
+上传简历 + 粘贴 JD → 查看分数与明细 → 下载 PDF，无需操作 Swagger 或复制报告标识。
+页面无外部 CDN，也不保存输入，刷新即清空。服务请只监听 `127.0.0.1`；**v1 无鉴权，请勿暴露公网。**
 
 ## 隐私提醒
 

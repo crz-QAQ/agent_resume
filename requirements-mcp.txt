@@ -1,0 +1,2 @@
+# MCP server 依赖（可选安装；mcp 2.x 必须钉版本，3.x 会改 API）
+mcp>=2.0,<3

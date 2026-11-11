@@ -1,4 +1,4 @@
-"""离线断言 S3 的九组规则，失败展示用例、期望和实际，退出码为 1。"""
+"""离线断言 S3 原九组及 S3.5 四组规则，失败展示双方值，退出码为 1。"""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from app.schemas_match import JobInfo
-from app.scoring_rules import HardScore, score_hard
+from app.scoring_rules import FAMILY_ALIASES, SKILL_FAMILIES, HardScore, score_hard
 
 # 简历模型模块存在客户端初始化副作用；离线输入只复用其字段契约。
 if TYPE_CHECKING:
@@ -214,6 +214,77 @@ def _check_aliases() -> str:
     return "Go/golang 命中；全部别名双向、大小写及内部空白通过"
 
 
+def _check_family_members() -> str:
+    """F1：同族举例只算一项，任一成员及其他三族的替代成员均可命中。"""
+    result = _score("F1", _resume(skills=("DeepSeek",)), _job(skills=("DeepSeek", "Qwen", "OpenAI")))
+    _equal("F1/技能分", 15, result.breakdown["skills"])
+    _equal("F1/扣分", [], result.deductions)
+    # 非 JD 举例中的同族成员仍符合任务书的任一成员规则。
+    cases = (("Kafka", "RabbitMQ", "Pulsar"), ("Chroma", "Milvus", "Qdrant"),
+             ("AWS", "阿里云", "Azure"), ("DeepSeek", "Qwen", "Claude"))
+    for first, second, member in cases:
+        alternative = _score("F1/同族替代", _resume(skills=(member,)), _job(skills=(first, second)))
+        _equal("F1/同族替代技能分", 15, alternative.breakdown["skills"])
+        _equal("F1/同族替代扣分", [], alternative.deductions)
+    return "同族三项 + DeepSeek → skills=15；无扣分；四族任一成员均可命中"
+
+
+def _check_family_mixed() -> str:
+    """F2：同族与独立技能分别计分，未命中的族显示固定中文名及原始举例。"""
+    result = _score("F2", _resume(skills=("DeepSeek",)), _job(skills=("DeepSeek", "Qwen", "Go")))
+    _equal("F2/分母2技能分", 8, result.breakdown["skills"])
+    _equal("F2/Go照扣", [("必备技能：Go", "Go", 7)],
+           [(item.item, item.jd_evidence, item.deduct) for item in result.deductions])
+    # 反向缺口验证族文案；只使用 JD 中的举例，不补造其他厂商证据。
+    missing = _score("F2/族缺失", _resume(skills=("Go",)), _job(skills=("DeepSeek", "Qwen", "Go")))
+    _equal("F2/族缺失技能分", 8, missing.breakdown["skills"])
+    _equal("F2/族扣分文案", "必备技能：LLM 产品（举例：DeepSeek、Qwen）", missing.deductions[0].item)
+    _equal("F2/族JD依据", "LLM 产品（举例：DeepSeek、Qwen）", missing.deductions[0].jd_evidence)
+    # 多次运行同时比较明细及完整扣分列表，禁止集合遍历影响报告顺序。
+    snapshots = []
+    for _ in range(3):
+        repeated = _score("F2/三次确定性", _resume(), _job(skills=("Qwen", "DeepSeek", "Go", "MySQL")))
+        snapshots.append((repeated.breakdown, [item.model_dump() for item in repeated.deductions]))
+        _equal("F2/技能扣分守恒", 15 - repeated.breakdown["skills"],
+               sum(item.deduct for item in repeated.deductions if item.type == "missing_skill"))
+    _equal("F2/第1次等于第2次", snapshots[0], snapshots[1])
+    _equal("F2/第2次等于第3次", snapshots[1], snapshots[2])
+    return "分母2；skills=8；Go扣7；族文案、技能守恒及三次确定性通过"
+
+
+def _check_family_real_gap() -> str:
+    """F3：Python 不能命中 Go，真缺口不因新增概念族而放宽。"""
+    result = _score("F3", _resume(skills=("Python",)), _job(skills=("Go",)), "熟悉 Python")
+    _equal("F3/技能分", 0, result.breakdown["skills"])
+    _equal("F3/Go扣满", [("missing_skill", "Go", 15)],
+           [(item.type, item.jd_evidence, item.deduct) for item in result.deductions])
+    # 两个非同族技能继续是两项，而不是被合并成一个“编程语言”要求。
+    separate = _score("F3/非同族", _resume(skills=("Go",)), _job(skills=("Go", "Python")))
+    _equal("F3/非同族分母2", 8, separate.breakdown["skills"])
+    _equal("F3/Python照扣", 7, separate.deductions[0].deduct)
+    return "Go + Python简历 → skills=0；Go扣15；Go/Python不合并"
+
+
+def _check_family_concepts() -> str:
+    """F4：上位概念可反查族；全部指定别名、空格大小写及原文兜底生效。"""
+    result = _score("F4", _resume(skills=("DeepSeek",)), _job(skills=("LLM 产品 API",)))
+    _equal("F4/上位概念技能分", 15, result.breakdown["skills"])
+    _equal("F4/上位概念扣分", [], result.deductions)
+    # 固定排序只是让测试输入可复现，业务输出不从 set 选择代表名。
+    for family, aliases in FAMILY_ALIASES.items():
+        member = sorted(SKILL_FAMILIES[family])[0]
+        for alias in sorted(aliases):
+            check = _score("F4/全部别名", _resume(skills=(member.upper(),)), _job(skills=(f" {alias.upper()} ",)))
+            _equal("F4/别名反查技能分", 15, check.breakdown["skills"])
+            _equal("F4/别名扣分守恒", 15 - check.breakdown["skills"], sum(item.deduct for item in check.deductions))
+    # 模型漏抽成员时允许原文兜底；只有泛称则不能假装存在具体产品经验。
+    raw = _score("F4/原文兜底", _resume(), _job(skills=("LLM 产品 API",)), "集成 DeepSeek API")
+    _equal("F4/原文技能分", 15, raw.breakdown["skills"])
+    generic = _score("F4/泛称非成员", _resume(skills=("LLM",)), _job(skills=("LLM 产品 API",)))
+    _equal("F4/泛称不冒充产品", 0, generic.breakdown["skills"])
+    return "LLM 产品 API + DeepSeek → skills=15；全部别名反查、原文兜底通过"
+
+
 def _check_documentation() -> None:
     """检查两个新代码文件的注释占比及全部模块、类和函数的文档。"""
     for relative in ("app/scoring_rules.py", "tools/check_scoring_rules.py"):
@@ -236,22 +307,25 @@ def _check_documentation() -> None:
 
 
 def main() -> int:
-    """运行九组独立断言与规范检查，输出完整结果和真实通过数。"""
+    """运行原九组和新增四组独立断言，输出规范检查和真实通过数。"""
     # 清理上次收集的数据，便于同一解释器中再次执行验收。
     RESULTS.clear()
-    # 九组对应 S3 §四；单组失败后继续，末行保留完整 X/9。
+    # 原九组对应 S3 §四，追加四组来自 S3.5；失败后仍跑完后续组。
     cases = (_check_years_met, _check_years_near, _check_years_short, _check_years_optional,
-             _check_years_unknown, _check_education, _check_skills, _check_conservation, _check_aliases)
+             _check_years_unknown, _check_education, _check_skills, _check_conservation, _check_aliases,
+             _check_family_members, _check_family_mixed, _check_family_real_gap, _check_family_concepts)
     passed = 0
-    print("=== S3 硬性条件纯规则验收 ===")
+    print("=== S3 + S3.5 硬性条件纯规则验收 ===")
     for index, check in enumerate(cases, 1):
+        # 原九组编号保持不变，新四组按任务书标为 F1～F4。
+        label = str(index) if index <= 9 else f"F{index - 9}"
         try:
             detail = check()
         except AssertionError as failure:
             # 业务入口的守恒断言没有消息时，也打印具体用例及双方状态。
-            print(f"[{index}] FAIL：{check.__name__}；期望=本组断言全部成立；实际={failure!r}")
+            print(f"[{label}] FAIL：{check.__name__}；期望=本组断言全部成立；实际={failure!r}")
         else:
-            print(f"[{index}] PASS：{detail}")
+            print(f"[{label}] PASS：{detail}")
             passed += 1
     quality_ok = True
     try:
@@ -264,8 +338,8 @@ def main() -> int:
         quality_ok = False
     print(f"耗时 {perf_counter() - STARTED:.3f} 秒；纯本地，无网络")
     # 末行格式固定；额外规范失败仍须用退出码阻止验收被误判为成功。
-    print(f"通过 {passed}/9")
-    return 0 if passed == 9 and quality_ok else 1
+    print(f"通过 {passed}/{len(cases)}")
+    return 0 if passed == len(cases) and quality_ok else 1
 
 
 if __name__ == "__main__":

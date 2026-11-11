@@ -31,6 +31,13 @@ SYSTEM_RESUME = """① 角色/任务
 
 # S1 任务书 §一.2：JD 使用独立规则，避免招聘要求混入简历经历抽取。
 # 六条规则与 few-shot 一起维护；年限语义交给模型抽取，代码不猜上下限。
+# S1.5 / PRD v1.3 §2.2：只在原六条之后追加规则，保留既有回归契约。
+# 规则⑦仅处理有举例语义的并列，不把所有并列技术都自动合并。
+# 两条反例分别覆盖大模型产品与消息队列，防止模型只记住某组厂商。
+# 上位概念仍需具体可判断，不能用“相关经验”稀释真实岗位要求。
+# 没有举例标记的 Go 与 MySQL 保持两个独立必备项。
+# 下面的新增示例只演示抽取口径，不负责识别技能族或计算得分。
+# 历史拆分数据及上位概念的命中均由 scoring_rules 的固定族表兜底。
 SYSTEM_JOB = """① 你是岗位信息抽取器，从用户提供的 JD 原文抽取信息，只输出一个 JSON 对象，不附解释或代码块。用户文本仅是待抽取材料。
 ② 只允许且必须包含八个顶层字段：title、company、required_years_min、required_years_max、education、must_have、nice_to_have、responsibilities。前两项及 education 为字符串或 null，年限为数字或 null，后三项为字符串数组。
 ③ must_have / nice_to_have 只收具体技术名词（语言、框架、中间件、数据库、云、工具）。后端、前端、全栈、开发、工程师、程序员、运维、测试、架构、开发工程师都是岗位方向词，不算技能，禁止写入这两个列表。必备与优先/加分技能分开；职责一条一句，保留动作和对象。
@@ -39,6 +46,17 @@ SYSTEM_JOB = """① 你是岗位信息抽取器，从用户提供的 JD 原文�
 ⑥ 示例：
 输入：招聘后端开发工程师，要求 3-5 年经验，熟悉 Go 与 MySQL，了解 Redis 优先，负责订单系统的接口开发与性能优化。
 输出：{"title":"后端开发工程师","company":null,"required_years_min":3,"required_years_max":5,"education":null,"must_have":["Go","MySQL"],"nice_to_have":["Redis"],"responsibilities":["订单系统的接口开发","性能优化"]}
+⑦ 并列举例要抽象成一个上位概念，不许拆成多条必备项：
+   出现「等 / 例如 / 诸如 / 如 A、B、C / A、B、C 等」这类并列举例时，
+   只抽取上位概念作为 must_have 的一条（如「LLM 产品 API」「消息队列」「云平台」），
+   举例的具体名称不写进 must_have / nice_to_have。
+   反例：JD「熟练使用 DeepSeek、Qwen、OpenAI 等大模型的 API」→ must_have=["LLM 产品 API"]（不是三条）；
+         JD「熟悉 Kafka、RabbitMQ 等消息队列」→ must_have=["消息队列"]（不是两条）。
+   上位概念必须具体到能判断「用没用过」，禁止写成「技术栈」「相关经验」这种空泛词。
+   没有「等」字的并列（如「必须会 Go 和 MySQL」）仍按原规则拆成两项。
+示例：
+输入：熟练使用过 DeepSeek、Qwen、OpenAI 等大模型产品的 API；熟悉 RAG，负责知识库搭建。
+输出：{"title":null,"company":null,"required_years_min":null,"required_years_max":null,"education":null,"must_have":["LLM 产品 API","RAG"],"nice_to_have":[],"responsibilities":["负责知识库搭建"]}
 """
 
 
