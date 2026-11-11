@@ -7,6 +7,19 @@
 > 后端出身（Go/Gin + PHP，3 年）转 AI 交付方向，这是补「LLM 应用交付」这一层的实操项目。
 > 关注点不是「让模型更聪明」，而是 **让 AI 的结果可验证、可拦截、可解释成本**。
 
+## 三种使用方式
+
+| 方式 | 状态 | 如何使用 |
+|---|---|---|
+| 本地部署 | ✓ | 用 Docker Compose 或 Uvicorn 启动服务 |
+| API 调用 | ✓ | 启动后通过 `/docs` 查看并试用 HTTP 接口 |
+| Skill 给 agent | 规划中 | — |
+
+## 隐私提醒
+
+简历包含个人敏感信息。**请勿将真实简历上传到公共部署环境。**
+`/match/score` 在内存中处理简历原文，服务端只将最终 PDF 写入 `reports/`，有效期为 30 分钟。
+
 ---
 
 ## 能做什么
@@ -68,6 +81,24 @@ cp .env.example .env
 ```
 
 服务默认仅监听 `127.0.0.1`，v1 没有鉴权，不要直接暴露公网。
+
+### 用 Docker Compose 启动
+
+在 Linux 上，请先用 `mkdir -p reports` 创建报告目录，并确保容器内的 `appuser` 可以写入。
+
+```bash
+cp .env.example .env
+# 按上面的配置步骤编辑 .env，再启动服务
+docker compose up -d
+```
+
+打开 [Swagger UI](http://127.0.0.1:8000/docs) 试用接口。
+
+### 首次运行要注意
+
+- 首次使用向量模型时会下载 `bge-small-zh-v1.5`（约 100 MB），首次使用重排时会另行下载 `bge-reranker-base`（约 1 GB）。镜像内置 `HF_ENDPOINT=https://hf-mirror.com`，可在运行时覆盖。
+- `docs/` 由 `.gitignore` 排除，克隆后 RAG 语料为空是刻意设计。复现评测时请在本地准备相同版本的语料。
+- 本地启动和 Docker Compose 默认都只通过宿主机 `127.0.0.1` 提供访问。**v1 无鉴权，请勿暴露到公网。**
 
 ### 三种调用方式
 
@@ -171,7 +202,7 @@ path = "练习/.chroma"                                          # ✗ 换目录
 | 向量库一致性 | 8 题 top-1 **8/8 相同** | `tools/eval_vector_store.py` |
 | 向量库延迟 | 手写 2.54~3.14 ms vs chroma 14.17~16.70 ms | 两次实测 |
 | 单次抽取成本 | **0.00028 元** | `UsageMeter` |
-| Docker 镜像 | **488 MB**（非 root、0 个真 key） | `docker images` |
+| Docker 镜像 | **726 MB**（非 root、0 个真 key；含 fastembed/onnxruntime 本地推理）| `docker images` |
 | 接口用例 | 7/7 通过（含扫描件 422 / 11MB 413） | `tools/verify_delivery.py` |
 | 三版本行为一致 | status 4/6、抽取 6/6 | 见下方「三种实现」 |
 
@@ -190,11 +221,16 @@ path = "练习/.chroma"                                          # ✗ 换目录
 | 项 | 手写 | LangChain | Dify |
 |---|---|---|---|
 | 护栏 | `check_resume()` 26 行 | 复用同一份 | 代码节点 63 行 |
-| 部署体积 | **488 MB** | 488 MB + 9 MB | **13.07 GB / 15 容器** |
+| 部署体积 | **726 MB** | 726 MB + 9 MB | **13.07 GB / 15 容器** |
 | 启动 | 秒级 | 秒级 | 4 分 05 秒（重启 40 秒） |
 | 改一条规则 | 改代码重跑 | 改代码重跑 | **改节点秒级生效** |
 | 成本统计 | 精确到元 | 需挂 callback | 面板不显示 |
 | 适用 | 内网、规则复杂、要进 git | 多模型多数据源 | 业务方自助调 |
+
+> **体积口径说明**：Day15 时手写版是 488 MB（只有大模型 API 调用）；S4 语义分引入
+> 本地 embedding + cross-encoder 重排（fastembed/onnxruntime）后增至 **726 MB**；
+> D1 时把只用于「换库对照」的 chromadb 移出运行时依赖，从 1.05 GB 降回 726 MB
+> （chromadb 会拖进 kubernetes 126 MB 等约 324 MB）。
 
 **复刻的副产品**：用 Dify 重写一遍时，发现手写版「招聘要求」拦截条件多写了一个 `is_student`，
 导致纯招聘广告被放行 —— 换一种实现复刻，本身就是一次代码 review。
@@ -232,19 +268,22 @@ resume-agent/
 │  └─ 演示脚本.md                # 3 分钟逐句讲稿
 ├─ .env.example
 ├─ requirements.txt
-└─ Dockerfile                    # 488MB，非 root，无密钥
+└─ Dockerfile                    # 726MB，非 root，无密钥
 ```
 
 ---
 
 ## Docker
 
+> 请优先使用快速开始里的 Docker Compose 步骤。手动运行下方示例时，请将端口参数设为 `-p 127.0.0.1:8000:8000`，让宿主机仅在回环地址上发布端口。
+
 ```bash
 docker build -t resume-ai:latest .
 docker run -p 8000:8000 --env-file .env resume-ai:latest
 ```
 
-镜像 488 MB，非 root 用户运行，`.dockerignore` 排除 `.env`（扫过：0 个真实密钥）。
+镜像 **726 MB**（`docker images` 实测），非 root 用户运行，`.dockerignore` 排除 `.env`（扫过：0 个真实密钥）。
+手写 RAG vs chromadb 换库对照需要额外安装 `requirements-optional.txt`，运行时镜像不含 chromadb（它会把 kubernetes 等 300MB 拖进来）。
 
 ---
 

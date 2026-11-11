@@ -1,5 +1,7 @@
 """Day 18 评测：对比 Day 13 基线与 Chroma 的 top-1 检索结果和延迟。"""
 
+from __future__ import annotations
+
 import os
 
 os.environ.setdefault("HF_ENDPOINT", "https://hf-mirror.com")
@@ -13,8 +15,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 # 加入app包的父目录，命令行启动不再依赖旧的中文目录布局。
 
-import chromadb  # noqa: E402
-from chromadb.errors import NotFoundError  # noqa: E402
 from tools.eval_retrieval import CASES  # noqa: E402
 # 只复用题目常量，导入时不会运行基线工具的main。
 
@@ -28,10 +28,12 @@ from app import vector_store as M  # noqa: E402
 
 def _prepare_collection(chunks: list[R.Chunk]) -> M.Collection:
     """集合数量正确时直接复用；缺失或数量不符时才重建。"""
+    # 复用换库模块的延迟导入与安装指引，模块加载不触发 Chroma。
+    chromadb, Settings = M._require_chromadb()
     client = chromadb.PersistentClient(
         # 向量库仍使用原有模块路径，避免导入整理后新建另一套集合。
         path=M.DEFAULT_PATH,
-        settings=M.Settings(anonymized_telemetry=False),
+        settings=Settings(anonymized_telemetry=False),
     )
     try:
         # 已有集合优先复用，重建条件由后续原有校验决定。
@@ -39,7 +41,7 @@ def _prepare_collection(chunks: list[R.Chunk]) -> M.Collection:
             name="fde_chunks",
             embedding_function=None,
         )
-    except NotFoundError:
+    except chromadb.errors.NotFoundError:
         # 集合缺失时保留原有重建路径，不伪造空成功。
         collection = None
 
@@ -72,6 +74,13 @@ def main() -> int:
     # 导入变化只统一模块身份，不修改匹配标准或评测题目。
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
+
+    try:
+        M._require_chromadb()
+    except RuntimeError as exc:
+        # 先检查依赖，缺包时只打印指引并退出，避免下载评测模型。
+        print(exc, file=sys.stderr)
+        return 1
 
     chunks = R.load_chunks()
     # 索引共享相同语料列表，保证基线和集合比较有意义。

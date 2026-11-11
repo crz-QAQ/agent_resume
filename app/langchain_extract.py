@@ -18,10 +18,10 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnableLambda
 from langchain_openai import ChatOpenAI
 
-from agent import check_resume
-from schemas import ResumeInfo
-from providers import UsageMeter
-from prompts import SYSTEM_RESUME
+from app.agent import check_resume
+from app.prompts import SYSTEM_RESUME
+from app.providers import UsageMeter
+from app.schemas import ResumeInfo
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent

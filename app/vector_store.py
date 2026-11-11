@@ -7,11 +7,15 @@ import sys
 import time
 from collections.abc import Iterable
 from pathlib import Path
+from types import ModuleType
+from typing import TYPE_CHECKING
 
-import chromadb
 import numpy as np
-from chromadb.api.models.Collection import Collection
-from chromadb.config import Settings
+
+if TYPE_CHECKING:
+    # 类型检查保留原有 Chroma 类型，运行时导入无需安装可选依赖。
+    from chromadb.api.models.Collection import Collection
+    from chromadb.config import Settings
 
 from app import rag
 from app.rag import Chunk
@@ -25,6 +29,20 @@ COLLECTION_METADATA = {"hnsw:space": "cosine"}
 # 绝对不能写相对路径 "练习/.chroma"：PyCharm 和命令行的工作目录不同，
 # 相对路径会按各自工作目录解析，最终生成两个不同的向量库。
 DEFAULT_PATH = Path(__file__).resolve().parent / ".chroma"
+CHROMADB_INSTALL_HINT = (
+    "未安装 chromadb：pip install -r requirements-optional.txt（仅换库对照需要）"
+)
+
+
+def _require_chromadb() -> tuple[ModuleType, type[Settings]]:
+    """首次使用换库对照时加载可选依赖，缺失时给出安装指引。"""
+    try:
+        import chromadb
+        from chromadb.config import Settings
+    except ImportError:
+        # 同时覆盖 Chroma 的间接依赖缺失，隐藏底层导入异常链。
+        raise RuntimeError(CHROMADB_INSTALL_HINT) from None
+    return chromadb, Settings
 
 
 def _normalize_rows(embeddings: np.ndarray) -> np.ndarray:
@@ -86,6 +104,7 @@ def build_collection(
     # 输入Chunk的来源信息与向量同时保存。
     # 构建前后数量用于发现漏写入。
     # 默认路径继续以模块位置定位，避免cwd改变产生第二份库。
+    chromadb, Settings = _require_chromadb()
     chunk_list = list(chunks)
     target = Path(path) if path is not None else DEFAULT_PATH
     client = chromadb.PersistentClient(
@@ -147,6 +166,8 @@ def query_chunks(
     if k <= 0:
         return []
 
+    # 先检查可选依赖，避免缺包时仍加载语料或下载向量模型。
+    chromadb, Settings = _require_chromadb()
     if rag._vector_model is None:
         chunks = rag.load_chunks()
         rag._vector_model, _ = rag.build_vector_index(chunks)
@@ -215,6 +236,7 @@ def add_one_chunk(chunk: Chunk) -> int:
     # 原集合其他片段保持原有标识。
     # 使用既有模型编码，避免混入不同向量空间。
     # 增量路径不重新计算全库模型结果。
+    chromadb, Settings = _require_chromadb()
     client = chromadb.PersistentClient(
         path=DEFAULT_PATH,
         settings=Settings(anonymized_telemetry=False),
@@ -277,6 +299,12 @@ def main() -> None:
     # 本次仅补入口文档与导入说明。
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
+
+    try:
+        _require_chromadb()
+    except RuntimeError as exc:
+        # 命令行只打印安装提示，缺包时不进入语料与模型处理。
+        raise SystemExit(str(exc)) from None
 
     chunks = rag.load_chunks()
     chunk_count = len(chunks)

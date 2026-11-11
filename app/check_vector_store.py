@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import sys
 
-import rag
-from rag import Chunk
-from vector_store import (
+from app import rag
+from app.rag import Chunk
+from app.vector_store import (
     add_one_chunk,
     build_collection,
     query_chunks,

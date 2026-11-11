@@ -1,0 +1,2 @@
+# 可选依赖：仅用于「手写 RAG vs chromadb 换库对照」的复现（接口不依赖）
+chromadb

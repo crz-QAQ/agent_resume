@@ -2,7 +2,8 @@ FROM python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    TZ=Asia/Shanghai
+    TZ=Asia/Shanghai \
+    HF_ENDPOINT=https://hf-mirror.com
 
 WORKDIR /app
 
@@ -17,8 +18,6 @@ RUN pip install --no-cache-dir -r requirements.txt \
 #    真要减体积必须用 multi-stage build（本项目的体积大头是 numpy/pillow/lxml
 #    这类编译好的二进制轮子，删了功能就跑不了，所以选择接受 488MB）。
 
-# 只拷 练习/ —— .env 绝不 COPY
-
 COPY app/ ./app/
 
 # 非 root 用户运行
@@ -31,4 +30,4 @@ USER appuser
 WORKDIR /app
 
 EXPOSE 8000
-CMD ["uvicorn", "app.api:app", "--host", "127.0.0.1", "--port", "8000"]
+CMD ["uvicorn", "app.api:app", "--host", "0.0.0.0", "--port", "8000"]

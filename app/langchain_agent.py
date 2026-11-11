@@ -20,16 +20,16 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnableLambda
 from langchain_openai import ChatOpenAI
 
-from schemas import ResumeInfo
-from providers import PROVIDERS, UsageMeter, _provider_key
 # repair 触发词来自 agent 模块级常量，改关键词只改那一处。
-from agent import (
+from app.agent import (
     AgentResult,
     StepLog,
     check_resume,
     repair_reason_keywords,
 )
-from prompts import PROMPT_VERSION, SYSTEM_RESUME
+from app.prompts import PROMPT_VERSION, SYSTEM_RESUME
+from app.providers import PROVIDERS, UsageMeter, _provider_key
+from app.schemas import ResumeInfo
 
 # Windows 默认 GBK 控制台无法编码“✓”等验收标记。脚本显式使用 UTF-8，
 # 避免业务测试通过后只因终端编码而异常退出。

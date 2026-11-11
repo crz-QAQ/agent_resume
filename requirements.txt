@@ -18,7 +18,7 @@ pdfplumber
 # 检索与向量
 rank-bm25
 fastembed
-chromadb
+# chromadb 已移到 requirements-optional.txt，仅换库对照需要
 
 # LangChain 对照实现
 langchain-core
