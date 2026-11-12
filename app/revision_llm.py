@@ -161,7 +161,8 @@ def _reject(rejected: list[dict], raw: object, reason: str) -> None:
 
 def _strip_inferred_note(why: str) -> str:
     """纯函数：仅移除画像/推测声明及其包裹符，整理分号、空白，保留其余文字。"""
-    note = r"(?:岗位\s*画像(?:\s*[（(]\s*推测\s*[）)])?|推测)"
+    # 只剥离完整声明；裸词会把「非推测」或「推测原因」中的事实说明误删。
+    note = r"(?:岗位\s*画像(?:\s*[（(]\s*推测\s*[）)])?|[（(]\s*推测\s*[）)])"
     # 先匹配整段括号或引号声明，避免删除词语后留下空括号。
     pattern = rf"(?:[（(]\s*{note}\s*[）)]|「\s*{note}\s*」|『\s*{note}\s*』|{note})"
     cleaned, removed = re.subn(pattern, "", why)

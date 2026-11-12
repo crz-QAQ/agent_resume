@@ -179,6 +179,9 @@ def render_review_pdf(rep: RevisionReport, diagnosis: DiagnosisReport, *, job_ti
     # 来源横幅只认已存储的 profile.source，用户给 JD 时不显示推测免责声明。
     story.append(_banner(profile_banner(rep.profile) if inferred else "依据：用户提供的真实 JD",
                          "#FEE4E2" if inferred else "#ECFDF3", styles))
+    if rep.meta.get("rewrite_requested") and rep.meta.get("resume_ext") == "pdf":
+        # M5 只传输入格式；重排说明属于意见报告，不能混入改后简历正文。
+        story.append(_banner("原文件是 PDF，版式已重排；如需保留原版式请上传 Word 版", "#ECFDF3", styles))
     failed = rep.meta.get("status") == "failed"
     if failed:
         # 失败时不展示残留意见，但上游诊断、关键词和审计仍可读。
@@ -219,7 +222,7 @@ def render_review_pdf(rep: RevisionReport, diagnosis: DiagnosisReport, *, job_ti
     _section(story, "不建议改", [_table(["项", "现状", "为什么改不了", "你能做什么"],
              _unchangeable_rows(diagnosis, hard), [18, 52, 55, 49], styles,
              empty="本次没有发现改不动的问题")], styles)
-    if rep.adaptations:
+    if rep.adaptations or (rep.meta.get("rewrite_requested") and rep.skipped):
         # 此处只展示未来上游给出的前后对照，不执行任何改写，也不生成改后简历。
         content = [_table(["意见", "原文", "改后"], [[item.issue_id, item.before, item.after] for item in rep.adaptations],
                           [24, 75, 75], styles, empty="—")]

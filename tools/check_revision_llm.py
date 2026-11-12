@@ -368,7 +368,10 @@ async def _check_d(index: int) -> str:
         for before, after in (
                 ("JD 要求 Go；岗位画像（推测）；原句缺证据", "JD 要求 Go；原句缺证据"),
                 ("岗位画像（推测）；JD 要求 Go", "JD 要求 Go"),
-                ("JD 要求 Go；推测", "JD 要求 Go"),
+                # D-M3-06：裸词属于原文事实说明，不再作为完整声明剥离。
+                ("JD 要求 Go；推测", "JD 要求 Go；推测"),
+                ("时间重叠，需核实（非推测）", "时间重叠，需核实（非推测）"),
+                ("JD 要求 Go；（推测）", "JD 要求 Go"),
                 ("JD 要求 Go ; ；岗位画像（推测） ； ; 原句缺证据", "JD 要求 Go;原句缺证据"),
                 ("JD 要求 Go（岗位画像（推测））", "JD 要求 Go"),
                 ("JD 要求 Go；「岗位画像（推测）」", "JD 要求 Go"),
@@ -383,7 +386,7 @@ async def _check_d(index: int) -> str:
         return f"user_jd；why={report.issues[0].why!r}；其余字段保留；中间/尾部/分号/空白/幂等通过；成本=0"
     if index == 2:
         # 三种完全没有实质理由的声明都必须拒绝，不能输出一个空 why。
-        for why in ("岗位画像（推测）", "； 推测 ； 岗位画像（推测） ；", "（推测）"):
+        for why in ("岗位画像（推测）", "； （推测） ； 岗位画像（推测） ；", "（推测）"):
             report, fake = await _fake({"issues": [dict(baseline, why=why)]})
             _expect(not report.issues and report.meta["status"] == "needs_review", "D2 保留空 why 意见")
             _expect(len(report.rejected_issues) == 1 and report.rejected_issues[0]["reason"] == "理由仅剩推测声明", "D2 缺少指定拒绝原因")
