@@ -22,7 +22,7 @@ from pydantic import BaseModel, ValidationError
 from app.guard_revision import (
     CN_DIGITS, PROPER_SUFFIX, QUOTED, TECH_TOKEN, find_original, new_numbers,
     new_proper_nouns, new_tech_terms, normalize_text, resolve_job_input,
-    validate_adaptation, validate_issue,
+    validate_adaptation, validate_issue, _number_tokens,
 )
 from app.schemas_revision import AdaptedText, JobProfile, ReviewIssue, RevisionReport
 
@@ -89,7 +89,8 @@ def _documentation() -> str:
             imports = {node.module for node in ast.walk(tree) if isinstance(node, ast.ImportFrom)}
             imports.update(alias.name for node in ast.walk(tree) if isinstance(node, ast.Import)
                            for alias in node.names)
-            _equal("护栏导入边界", {"re", "unicodedata", "app.schemas_revision"}, imports)
+            # Decimal 仅用于精确量级转换，仍无外部服务或客户端依赖。
+            _equal("护栏导入边界", {"re", "unicodedata", "decimal", "app.schemas_revision"}, imports)
             _equal("护栏无异步", [], [type(node).__name__ for node in ast.walk(tree)
                                       if isinstance(node, (ast.AsyncFunctionDef, ast.Await))])
         summaries.append(f"{Path(relative).name} 注释 {ratio:.1%}、docstring 100%")
@@ -236,7 +237,25 @@ def _check_numbers() -> str:
     # 不相关数量之间的空白和标点必须保留分隔意义。
     _equal("空白不拼数字", ["23"], new_numbers("23 个", "2 年、3 个"))
     _equal("数字稳定去重", ["200", "3"], new_numbers("200 3 200", "2 秒"))
-    return "两秒↔2 秒及中文整数通过；200/小数/年份/量级伪造被拦截"
+    # D-M3-01 四条新增回归留在数字组，保留 M0 原八组的验收口径。
+    for label, after, original, expected in (
+            ("XX 万级", "支撑日均 XX 万级下单请求", "负责接口开发", []),
+            ("5 万单原文已有", "支撑日均 5 万单", "支撑日均 5 万单", []),
+            ("200 万单原文没有", "支撑日均 200 万单", "支撑日均 5 万单", ["2000000"]),
+            ("XX%", "请求量降低 XX%", "负责接口开发", [])):
+        _equal(f"D-M3-01/{label}", expected, new_numbers(after, original))
+    # 不能仅同写法比较通过，还必须确实解析成完整数值而非两个 token。
+    _equal("5 万整体数值", ["50000"], _number_tokens("5 万"))
+    _equal("1 千整体数值", ["1000"], _number_tokens("1 千"))
+    _equal("量级跨写法", [], new_numbers("5 万单，1 千请求，0.5 万条", "50000 单，1000 请求，5000 条"))
+    # 各种占位符整体删除，但不能顺便删掉旁边的真实未知数字。
+    for placeholder in ("XX", "XX万", "XX 万", "XX%", "XX 万级"):
+        _equal(f"整体占位符 {placeholder}", [], _number_tokens(placeholder))
+        _equal(f"占位符旁数字 {placeholder}", ["200"], new_numbers(placeholder + "，200 毫秒", "120 毫秒"))
+    _equal("已有百分比", [], new_numbers("下降 40%", "访问量下降 40%"))
+    _equal("不虚构百分比", ["50"], new_numbers("下降 50%", "访问量下降 40%"))
+    _equal("原文 120 不得改为 200", ["200"], new_numbers("200 毫秒", "120 毫秒"))
+    return "两秒↔2 秒及中文整数通过；200/小数/年份/量级伪造被拦截；D-M3-01 新增 4/4（XX 万级、5 万单、200 万单、XX%）"
 
 
 def _check_issue() -> str:

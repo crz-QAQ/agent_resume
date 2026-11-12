@@ -18,6 +18,8 @@ QUOTED = re.compile(r'[《「『"]([^》」』"]{2,40})[》」』"]')
 # 「两」与「二」表示同一个数，转换必须发生在数字比较之前。
 CN_DIGITS = {"一": "1", "二": "2", "两": "2", "三": "3", "四": "4", "五": "5",
              "六": "6", "七": "7", "八": "8", "九": "9", "十": "10"}
+# D-M3-01：占位符连同量级、百分号整体跳过，不能剩下一个「万」再当作数字。
+NUMBER_PLACEHOLDER = re.compile(r"(?<![A-Za-z0-9_])XX(?![A-Za-z0-9_])(?:\s*[十百千万亿]+)?(?:\s*[%％])?(?:\s*级)?")
 
 
 def normalize_text(text: str) -> str:
@@ -127,16 +129,31 @@ def _chinese_number(token: str) -> str:
 
 
 def _number_tokens(text: str) -> list[str]:
-    """提取用于比较的阿拉伯数字与中文整数。
+    """提取数字整体，跳过 XX 占位符，并把数字加量级归一成实际数值。
 
     参数：text 为简历原文或改写正文。
-    返回：中文整数归一后的数字串列表，保留阿拉伯小数点。
+    返回：归一化数字串列表；无量级的阿拉伯数保留原写法，日期仍逐段比较。
     异常：无（参数须符合类型契约）。
     """
-    # 不去标点后再找数字：小数 2.5 不等于 25，日期两端也应各自比较。
-    # 中文按连续整数取词，再做位值转换，不能逐字符替换后拼接十位。
-    tokens = re.findall(r"[0-9]+(?:\.[0-9]+)?|[零〇一二两三四五六七八九十百千万亿]+", text)
-    return [token if token[0].isascii() else _chinese_number(token) for token in tokens]
+    # 用空白替换而非删除，避免占位符两侧的数字拼成另一个数。
+    text = NUMBER_PLACEHOLDER.sub(" ", text)
+    pattern = re.compile(r"(?P<arabic>[0-9]+(?:\.[0-9]+)?)(?:\s*(?P<scale>[十百千万亿]+))?"
+                         r"|(?P<chinese>[零〇一二两三四五六七八九十百千万亿]+(?:\s*[十百千万亿]+)?)")
+    numbers = []
+    for match in pattern.finditer(text):
+        if match["chinese"]:
+            numbers.append(_chinese_number(re.sub(r"\s+", "", match["chinese"])))
+        elif match["scale"]:
+            # Decimal 保证 0.1 万等量级转换不引入浮点误差。
+            # 只在实际转换量级时导入，岗位输入等纯文本路径不增加启动依赖。
+            from decimal import Decimal
+
+            value = format(Decimal(match["arabic"]) * int(_chinese_number(match["scale"])), "f")
+            numbers.append(value.rstrip("0").rstrip(".") if "." in value else value)
+        else:
+            # 百分号不另算数字；2021、120 和 2.5 等仍按原有完整数字串比较。
+            numbers.append(match["arabic"])
+    return numbers
 
 
 def new_numbers(after: str, resume_text: str) -> list[str]:
@@ -148,7 +165,7 @@ def new_numbers(after: str, resume_text: str) -> list[str]:
     """
     # JD 里的数字不能证明候选人的经历；此函数刻意不接收 JD 参数。
     allowed = set(_number_tokens(resume_text))
-    # 比较完整数字串，不能把 2 当成原文 200 中已经出现的数字。
+    # 比较完整数值，不能用原文里的 5 或「万」分别为 5 万背书。
     return list(dict.fromkeys(number for number in _number_tokens(after) if number not in allowed))
 
 
