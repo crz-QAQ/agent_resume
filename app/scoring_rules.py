@@ -20,6 +20,11 @@ EDU_LEVEL = {"博士": 5, "硕士": 4, "研究生": 4, "本科": 3, "学士": 3,
 SKILL_ALIASES = {"golang": "go", "go语言": "go", "postgres": "postgresql",
                  "js": "javascript", "ts": "typescript", "k8s": "kubernetes"}
 
+# 固定词表来自 S1 任务书 §一.3；由 JD 护栏与 M1 共同导入，不维护副本。
+ROLE_WORDS = {
+    "后端", "前端", "全栈", "开发", "工程师", "程序员", "运维", "测试", "架构", "开发工程师",
+}
+
 # PRD v1.3 §2.2 / S3.5 任务书 §二.1：固定同族成员，禁止让模型判定同族。
 # 族表只含已评审的四族，Go/Python 等无族技能不允许合并。
 SKILL_FAMILIES: dict[str, set[str]] = {
@@ -58,14 +63,14 @@ class HardScore:
     deductions: list[Deduction]
 
 
-def _normalize_skill(skill: str) -> str:
+def normalize_skill(skill: str) -> str:
     """小写、去首尾及内部空白后，应用指定的技能别名表。"""
     # split 同时处理空格、换行与制表符，避免格式差异造成未命中。
     normalized = "".join(skill.lower().split())
     return SKILL_ALIASES.get(normalized, normalized)
 
 
-def _skill_family(normalized: str) -> str | None:
+def skill_family(normalized: str) -> str | None:
     """先按具体成员、再按上位概念别名查族；未命中保持无族。"""
     for family, members in SKILL_FAMILIES.items():
         if normalized in members:
@@ -77,7 +82,7 @@ def _skill_family(normalized: str) -> str | None:
     return None
 
 
-def _group_required_skills(skills: list[str]) -> list[tuple[str | None, list[str]]]:
+def group_required_skills(skills: list[str]) -> list[tuple[str | None, list[str]]]:
     """仅合并同族必备项，按输入顺序保留各组原始名称作为扣分依据。"""
     groups: list[tuple[str | None, list[str]]] = []
     family_names: dict[str, list[str]] = {}
@@ -206,3 +211,9 @@ def score_hard(resume: ResumeInfo, job: JobInfo, resume_text: str) -> HardScore:
     score = sum(breakdown.values())
     assert sum(d.deduct for d in deductions) == 40 - score
     return HardScore(score=score, breakdown=breakdown, deductions=deductions)
+
+
+# M1 公开复用入口；保留旧名，函数体及原有评分调用保持完全兼容。
+_normalize_skill = normalize_skill
+_skill_family = skill_family
+_group_required_skills = group_required_skills

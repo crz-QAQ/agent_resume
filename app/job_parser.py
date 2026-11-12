@@ -10,12 +10,10 @@ import re
 from app.fallback import call_with_fallback_async
 from app.prompts import SYSTEM_JOB
 from app.schemas_match import JobInfo
+from app.scoring_rules import ROLE_WORDS
 
 
-# 固定词表来自 S1 任务书 §一.3；这些词描述岗位方向，不是具体技术。
-ROLE_WORDS = {
-    "后端", "前端", "全栈", "开发", "工程师", "程序员", "运维", "测试", "架构", "开发工程师",
-}
+# S1 方向词原样移至纯规则模块共享，避免 M1 为取词表加载客户端。
 # 只核对原文是否写了年数，不在代码里反推模型应当给出的上下限。
 # 同时接受小数与中文年数，避免把「三年」误判成原文未提年限。
 _YEAR_IN_TEXT = re.compile(r"(?:\d+(?:\.\d+)?|[零一二三四五六七八九十百两半]+)\s*(?:个\s*)?年")
