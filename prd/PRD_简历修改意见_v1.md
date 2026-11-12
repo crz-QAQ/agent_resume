@@ -303,6 +303,31 @@ class DiagnosisReport(BaseModel):
     meta: dict                              # 简历文件名字数 / 耗时（无模型成本 = 0）
 ```
 
+### 6.2.1 提分预估结构（v1.7 新增，内部结构，供 M6 与 PDF「智能修改」章节使用）
+
+```python
+class ScoreDelta(BaseModel):
+    before_total: int                  # 改前总分（来自评分模块，精确）
+    after_total_estimate: int          # 改后预估总分
+    before_parts: dict[str, int]       # {"hard":40,"semantic":21,"llm":25}
+    after_parts: dict[str, int]        # llm 为「沿用原分」
+    delta_parts: dict[str, int]        # after - before，逐项
+    estimated_fields: list[str]        # ["llm"] —— 明确哪些项是估的
+    covered_before: int                # 语义覆盖条数（改前）
+    covered_after: int                 # 语义覆盖条数（改后）
+    notes: list[str]                   # 人话解释：哪项为什么变，变了多少
+    llm_tolerance: int = 2             # LLM 项预估误差 ±2
+```
+
+**重算规则（PRD §8.0.4 的落地，零模型）**
+```
+改后文本 = 原文 + 逐条 (before → after) 逐字替换
+score_hard(new_text)      ← 零模型，精确
+score_semantic(new_text)  ← 零模型，精确（本地 embedding + 重排）
+LLM 30 分：不重跑，沿用 before 的 llm 分，estimated_fields=["llm"]
+✗ 不许用「预期提升 X 分」这类营销话术；delta 为负必须如实显示
+```
+
 ### 6.3 诊断缺陷枚举（**代码枚举，模型不许自创**）
 
 | code | 判据（纯规则） | severity |
@@ -535,3 +560,4 @@ M1 纯规则先做（零成本、可单测，先建立信心）；M5 智能修�
 | v1.4 | 2026-11-11 | ① 新增 **§6.2 内部结构**：`KwCoverage` / `DiagnosisFinding` / `DiagnosisReport`（不进对外 API，供 M3 引用）<br>② 新增 **§6.3 诊断缺陷枚举** 8 个 code（no_quantify / weak_verb / timeline_overlap / timeline_invalid / open_ended / relative_time / missing_section / skill_flat），模型不许自创<br>③ M1 分块对齐 §6.2/§6.3 | M1 要产出结构化诊断结果，若不先把内部契约定死，M3 会自己发明字段，后续 PDF 与 JSON 又对不上（评分功能已经踩过这个坑，v1.2 那次契约漂移） |
 | v1.5 | 2026-11-11 | ① 新增 **§8.0 复用关系表**：10 项能力全部复用评分功能，本功能不重写打分逻辑<br>② **§8.0.1** `scoring_rules` 三个私有函数 public 化（M1 前置）—— 否则 ATS 关键词与技能分会各算一套<br>③ **§8.0.2** 抽取 `app/pdf_kit.py`（M4 前置），report_pdf 改为 import，须回归 9/9<br>④ **§8.0.3** `report_store` 扩展多产出（M7 前置），旧 API 保留<br>⑤ **§8.0.4** M6 重算路径定死为**零模型**（只重跑硬性+语义，LLM 标预估）<br>⑥ M1/M3 必须接 `score_semantic` 的 per_item 与 `score_hard` 的 deductions 作为意见证据 | 用户提问「现在的设计是否有复用简历评分」—— 复查发现 3 处「说了复用但没定死」，尤其是私有函数，不 public 化就只能复制，复制就必然口径漂移 |
 | v1.6 | 2026-11-12 | ① §七 新增 **4.5 ATS 关键词覆盖表**（缺失项排前，数据来自 M1）<br>② 新增 **§7.1 渲染三态**：missing 类空建议、before==after 的时间类，一律印人工动作指引，禁止留空或重复原文<br>③ 新增 **§7.2「不建议改」清单生成规则**（代码确定性：years_*/education_* + timeline/open_ended + missing_section）<br>④ 结论摘要改为「一句话诊断 + 3 条 + 高中低统计」 | M3 验收实测：`missing` 类 suggested_text 为空（设计如此）、时间类建议与原文逐字相同（不许编月份）—— 两种在 PDF 上都会显示成「系统没干活」，必须换成明确指引；关键词覆盖是 M1 已算好的数据，不印等于浪费 |
+| v1.7 | 2026-11-12 | ① 新增 **§6.2.1 `ScoreDelta`**（改前/改后逐项分数 + `estimated_fields` 标明哪项是估的 + 覆盖率变化 + 人话 notes）<br>② 重算规则定死：硬性/语义精确重算，**LLM 不重跑**沿用原分并标 ±2<br>③ §七 章 6「智能修改」增加分数对比表 | M6 要给用户「改完值不值」的量化答案。若不先把「哪项精确、哪项是估的」写进结构，PDF 上就会出现一个笼统的「预计提升 8 分」，等于给承诺；delta 为负时也会被藏起来 |

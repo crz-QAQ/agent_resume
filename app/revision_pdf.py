@@ -22,7 +22,7 @@ from app.pdf_kit import (
 )
 # 勾叉沿用评分报告已有的单字缺字补画器，避免建立第二份符号实现。
 from app.report_pdf import _VerdictMark
-from app.schemas_revision import DiagnosisReport, ReviewIssue, RevisionReport
+from app.schemas_revision import DiagnosisReport, ReviewIssue, RevisionReport, ScoreDelta
 
 if TYPE_CHECKING:
     # 类型提示不导入评分或模型模块，渲染入口只读取传入属性。
@@ -152,9 +152,32 @@ def _keyword_rows(diagnosis: DiagnosisReport, styles: dict) -> list[list[object]
     return rows
 
 
+def _score_comparison(delta: ScoreDelta, styles: dict) -> list:
+    """只展示上游逐项分数、精确/预估标签与真实负差值，不重新计算评分。"""
+    rows = []
+    entries = [("总分 / 100", delta.before_total, delta.after_total_estimate)]
+    # 分项与总分分开列，LLM 的沿用值不能混称为精确重算。
+    entries.extend((label, delta.before_parts[key], delta.after_parts[key]) for key, label in
+                   (("hard", "硬性 / 40（精确）"), ("semantic", "语义 / 30（精确）"),
+                    ("llm", f'LLM / 30<font size="7">（预估 ±{delta.llm_tolerance}）</font>')))
+    for label, before, after in entries:
+        # 三个数值列在单元格内附带同一行项名，保留三列表头的清晰对比。
+        rows.append([Paragraph(f"{label}<br/>{before}", styles["cell"]), after,
+                     f"{after - before:+d}" if after != before else "0"])
+    content = [Paragraph("<b>分数对比</b>", styles["body"]),
+               _table(["改前", "改后预估", "变化"], rows, [78, 52, 44], styles, empty="—")]
+    if delta.after_total_estimate < delta.before_total:
+        # 警告必须真的使用红色字，不能只保留在不可见的审计数据里。
+        warning = ParagraphStyle("delta_warning", parent=styles["body"], textColor=colors.HexColor("#B42318"))
+        content.append(Paragraph("本次改写后预估分下降，建议只采用部分建议", warning))
+    # 逐项解释直接展示既有 notes，不在 PDF 层另造原因或省略 LLM 误差。
+    content.extend(Paragraph(_field(note, limit=1000), styles["meta"]) for note in delta.notes)
+    return content
+
+
 def render_review_pdf(rep: RevisionReport, diagnosis: DiagnosisReport, *, job_title: str,
                       resume_name: str = "简历", hard: HardScore | None = None,
-                      generated_at: str | None = None) -> bytes:
+                      generated_at: str | None = None, delta: ScoreDelta | None = None) -> bytes:
     """将现成意见按 PRD §七排版为 PDF 字节，不修改输入，不计算分数或补造生成时间。"""
     font = pdf_font.get_cjk_font()
     # 字体不可用直接抛出，不能吞错后输出不可读的报告。
@@ -222,10 +245,11 @@ def render_review_pdf(rep: RevisionReport, diagnosis: DiagnosisReport, *, job_ti
     _section(story, "不建议改", [_table(["项", "现状", "为什么改不了", "你能做什么"],
              _unchangeable_rows(diagnosis, hard), [18, 52, 55, 49], styles,
              empty="本次没有发现改不动的问题")], styles)
-    if rep.adaptations or (rep.meta.get("rewrite_requested") and rep.skipped):
+    if delta is not None or rep.adaptations or (rep.meta.get("rewrite_requested") and rep.skipped):
         # 此处只展示未来上游给出的前后对照，不执行任何改写，也不生成改后简历。
-        content = [_table(["意见", "原文", "改后"], [[item.issue_id, item.before, item.after] for item in rep.adaptations],
-                          [24, 75, 75], styles, empty="—")]
+        content = _score_comparison(delta, styles) if delta is not None else []
+        content.append(_table(["意见", "原文", "改后"], [[item.issue_id, item.before, item.after] for item in rep.adaptations],
+                              [24, 75, 75], styles, empty="—"))
         if rep.skipped:
             content.append(_table(["未采用意见", "说明"], [[row.get("issue_id", "—"), row.get("reason", "—")] for row in rep.skipped],
                                   [40, 134], styles, empty="—"))

@@ -1,4 +1,4 @@
-"""声明 PRD §六的四个简历修改模型，统一意见与智能修改的数据契约。
+"""声明 PRD §六的简历修改模型，统一意见与智能修改的数据契约。
 
 字段描述供结构化输出使用；本模块只定义数据，不执行生成、改写或校验逻辑。
 """
@@ -127,3 +127,19 @@ class DiagnosisReport(BaseModel):
     completeness: dict[str, bool] = Field(description="name/years/education/skills/contact 的完整性")
     # 成本恒为零；悬空证据丢弃数与截断数量也写入此处供复核。
     meta: dict = Field(description="原文字数、发现数、耗时、零成本及丢弃和截断统计")
+
+
+class ScoreDelta(BaseModel):
+    """内部结构，不进对外 API；供 M6 与 PDF 展示逐项精确分和 LLM 预估。"""
+
+    # PRD v1.7 §6.2.1：字段名、类型、顺序与默认值保持一致。
+    before_total: int                  # 改前总分（来自评分模块，精确）
+    after_total_estimate: int          # 改后预估总分
+    before_parts: dict[str, int]       # {"hard":40,"semantic":21,"llm":25}
+    after_parts: dict[str, int]        # llm 为「沿用原分」
+    delta_parts: dict[str, int]        # after - before，逐项
+    estimated_fields: list[str]        # ["llm"] —— 明确哪些项是估的
+    covered_before: int                # 语义覆盖条数（改前）
+    covered_after: int                 # 语义覆盖条数（改后）
+    notes: list[str]                   # 人话解释：哪项为什么变，变了多少
+    llm_tolerance: int = 2             # LLM 项预估误差 ±2

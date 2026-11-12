@@ -194,14 +194,29 @@ def rewrite_docx(raw: bytes, adaptations: list[AdaptedText]) -> RewriteOutcome:
     return RewriteOutcome(data=data, applied=applied, skipped=skipped)
 
 
-def _replace_pdf_text(text: str, adaptations: list[AdaptedText]) -> tuple[str, list, list]:
+def _find_text_span(text: str, before: str, *, normalize: bool = False) -> tuple[int, int]:
+    """定位首次出现的原文区间；可按 Word 的规范化规则映射回原始坐标。"""
+    if not normalize:
+        # PDF 原路径仍逐字匹配，保留 M5 的定位与跳过语义。
+        start = text.find(before) if before else -1
+        return start, start + len(before)
+    # 规范化只用于定位，替换写回仍使用原文坐标，不能破坏其他段落的排版。
+    key = _normalize(before)
+    start = _normalize(text).find(key) if key else -1
+    if start < 0:
+        return -1, -1
+    # 每个保留字符映射到原文；三种分隔符和空白的规则只有 _normalize 一份。
+    positions = [index for index, char in enumerate(text) if _normalize(char)]
+    return positions[start], positions[start + len(key) - 1] + 1
+
+
+def _replace_pdf_text(text: str, adaptations: list[AdaptedText], *, normalize: bool = False) -> tuple[str, list, list]:
     """以原文本坐标逐字替换，每条只定位一次，避免后续建议命中新写入的文字。"""
     replacements, applied, skipped = [], [], []
     for item in adaptations:
-        # PDF 路径坚持逐字查找，不使用 Word 的去分隔符规范化匹配。
+        # PDF 默认逐字查找；M6 复用同一替换流程并显式选择规范化定位。
         reason = _manual_reason(item)
-        start = text.find(item.before) if item.before else -1
-        end = start + len(item.before)
+        start, end = _find_text_span(text, item.before, normalize=normalize)
         if reason:
             skipped.append(_skip(item, reason))
         elif start < 0:
