@@ -1,21 +1,29 @@
 """HTTP协议适配：保留七个旧接口，匹配业务全部委托独立编排模块。"""
 
-from fastapi import APIRouter, FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi.exceptions import RequestValidationError
+from fastapi.routing import APIRoute
 from fastapi.responses import FileResponse, Response
+import json
 from pathlib import Path
 from pydantic import BaseModel, Field
 from typing import Optional
 from urllib.parse import quote
 from uuid import uuid4
 from starlette.concurrency import run_in_threadpool
+from starlette.formparsers import MultiPartException
+from time import monotonic
 
 from app.schemas import ResumeInfo
 from app.fallback import call_with_fallback_async
 from app.agent import AgentResult, parse_resume_agent
 from app.file_parser import FileParseError, extract_text
 from app import match_pipeline, report_store
+from app import revise_pipeline
+from app.job_profile import ProfileNotConfirmed, infer_profile, profile_hash as make_profile_hash
 from app.job_parser import JobParseError
 from app.match_upload import MAX_UPLOAD_BYTES, MemoryUploadRoute
+from app.match_upload import _MemoryParser, _UploadTooLarge
 from app.report_pdf import render_report
 from app.schemas_match import MatchReport
 
@@ -80,7 +88,7 @@ def fake_llm_extract(text: str) -> dict :
 @app.get("/",tags=["健康检查"])
 async def health() -> dict:
     """返回原有健康检查，供本地服务和验收探活。"""
-    return {"message":"服务已启动","docs":"/docs","ui":"/ui"}
+    return {"message":"服务已启动","docs":"/docs","ui":"/ui","revise":"/ui"}
     # 健康检查不访问模型，模型依赖故障时仍可用于确认进程可用。
 
 
@@ -303,6 +311,239 @@ async def match_stats() -> dict:
     """返回缓存数量和30分钟TTL，不包含用户材料。"""
     return report_store.stats()
     # 统计返回固定两个字段，客户端无法通过它枚举候选人的个人信息。
+
+
+# 修改工作区的原始材料仅缓存在进程内，TTL 到期后从内存删除，不创建原文侧车文件。
+_review_sessions: dict[str, tuple[float, revise_pipeline.ReviseOutcome, bytes, str]] = {}
+
+
+def _expire_reviews() -> None:
+    """惰性释放超过统一 TTL 的修改会话和上传字节，不更新会话创建时间。"""
+    # 单调时钟不受系统校时影响，刷新下载或统计不会延长原件驻留时间。
+    now = monotonic()
+    for identifier, session in list(_review_sessions.items()):
+        if session[0] <= now:
+            _review_sessions.pop(identifier, None)
+
+
+class _ReviseRoute(APIRoute):
+    """复用内存解析器，仅修改路由允许五个表单字段，旧评分上传策略不变。"""
+
+    def get_route_handler(self):
+        """在参数解析前限制文件大小，并把本组协议错误统一翻译为中文 422。"""
+        original = super().get_route_handler()
+
+        async def handle(request: Request):
+            """确保超限、坏表单和参数错误均不会落盘或回显请求材料。"""
+            # 每个请求拥有独立解析器和缓冲，异常时也在 finally 关闭。
+            form = None
+            try:
+                if request.headers.get("content-type", "").lower().startswith("multipart/form-data"):
+                    try:
+                        # 五个文本字段只适用于修改接口，旧评分路由仍只允许 JD 一个字段。
+                        form = await _MemoryParser(request.headers, request.stream(), max_files=1, max_fields=5).parse()
+                    except _UploadTooLarge as exc:
+                        raise HTTPException(413, "文件超过10MB上传上限") from exc
+                    except (MultiPartException, ValueError) as exc:
+                        raise HTTPException(422, "上传表单格式无效") from exc
+                    # FastAPI 复用已解析表单；不运行会切换到磁盘的默认上传路径。
+                    request._form = form
+                return await original(request)
+            except RequestValidationError as exc:
+                # 默认校验响应可能携带 input；修改接口只返回中文提示，不回显材料。
+                raise HTTPException(422, "请求参数无效，请检查文件、岗位信息或勾选条目") from exc
+            except HTTPException:
+                raise
+            except Exception as exc:
+                # 下载、统计等只读路由的内部错误也须收口，避免服务日志出现裸栈。
+                raise HTTPException(500, "修改服务暂时无法处理请求，请稍后重试") from exc
+            finally:
+                if form is not None:
+                    await form.close()
+
+        return handle
+
+
+revise_routes = APIRouter(route_class=_ReviseRoute)
+
+
+class ReviseApplyRequest(BaseModel):
+    """修改请求只接收服务端报告 ID 和意见编号，不接受客户端传入改写正文。"""
+
+    # 拒绝额外 before/after 参数，客户端无权把任意改写正文塞进应用请求。
+    model_config = {"extra": "forbid"}
+    review_id: str
+    # None 默认自动选择；空列表表示用户没有选择，必须明确返回 422。
+    selected_ids: list[str] | None = None
+
+
+def _revise_stats(outcome: revise_pipeline.ReviseOutcome) -> dict:
+    """投影已分析的统计数字，不把诊断对象、抽取结果或完整原文发给前端。"""
+    # 严重度只统计现成意见，不在协议层重新评估问题等级。
+    counts = {key: sum(issue.severity == key for issue in outcome.report.issues)
+              for key in ("high", "medium", "low")}
+    return {**counts, "missing": len(outcome.diagnosis.missing_keywords),
+            "cost_yuan": outcome.report.meta.get("cost_yuan", 0),
+            "elapsed_ms": outcome.report.meta.get("elapsed_ms", 0),
+            "resume_chars": outcome.report.meta.get("resume_chars", 0),
+            "jd_chars": outcome.report.meta.get("jd_chars", 0)}
+
+
+def _public_revise(outcome: revise_pipeline.ReviseOutcome, value):
+    """仅在展示投影中隐去姓名和原始教育标题，不修改内部意见、定位或改写内容。"""
+    name = outcome._resume.name if outcome._resume is not None else None
+
+    def redact(item):
+        """递归处理分析证据，保留服务器标识和数字字段原值。"""
+        if isinstance(item, dict):
+            # ID 必须原样保留；显示脱敏不参与勾选项回链或缓存路径构造。
+            return {key: content if key in {"id", "issue_id", "review_id", "auto_applicable_ids", "review_pdf_url", "resume_url"}
+                    else redact(content) for key, content in item.items()}
+        if isinstance(item, list):
+            return [redact(content) for content in item]
+        if isinstance(item, str):
+            # 只投影响应副本，M5 始终读取会话中未经脱敏的真实原句。
+            return (item.replace(name, "候选人") if name else item).replace("教育背景", "教育信息")
+        return item
+
+    return redact(value)
+
+
+@revise_routes.get("/revise/profile", tags=["修改意见"])
+async def revise_profile(job_title: str = "") -> dict:
+    """零模型生成待确认画像和稳定指纹，无效岗位名返回 422。"""
+    # M2 是纯模板函数，该路由既不抽取简历也不调用远端模型。
+    try:
+        profile = infer_profile(job_title)
+        return {"profile": profile.model_dump(), "profile_hash": make_profile_hash(profile)}
+    except ValueError as exc:
+        # 画像输入校验只处理岗位名称，消息来自 M0 的固定中文契约。
+        raise HTTPException(422, str(exc)) from exc
+
+
+@revise_routes.post("/revise/review", tags=["修改意见"])
+async def revise_review(file: UploadFile = File(...), job_title: str = Form(""), jd_text: str = Form(""),
+                        profile_hash: str | None = Form(None), profile_edits: str | None = Form(None)) -> dict:
+    """委托修改编排，保存最终意见 PDF，上传字节只留在限时内存会话中。"""
+    # 上传解析器与此处读上限双重限制，不将超大上传交给业务层。
+    try:
+        raw = await file.read(MAX_UPLOAD_BYTES + 1)
+        if len(raw) > MAX_UPLOAD_BYTES:
+            raise HTTPException(413, "文件超过10MB上传上限")
+        # JSON 字符串只解释为画像编辑对象，永远不作为代码执行。
+        edits = None
+        if profile_edits is not None:
+            try:
+                edits = json.loads(profile_edits)
+            except (ValueError, TypeError) as exc:
+                raise HTTPException(422, "岗位画像编辑须为有效 JSON 对象") from exc
+            if not isinstance(edits, dict):
+                raise HTTPException(422, "岗位画像编辑须为 JSON 对象")
+        # 真实 JD、画像确认、诊断和预估全部委托同一个可独立调用的编排入口。
+        outcome = await revise_pipeline.run_review(filename=file.filename or "", raw=raw,
+            job_title=job_title, jd_text=jd_text, profile_hash=profile_hash, profile_edits=edits)
+        pdf = await revise_pipeline.review_pdf(outcome)
+        # 所有下载标识由服务端生成，与原始文件名和候选人姓名无关。
+        identifier = uuid4().hex
+        await run_in_threadpool(report_store.save_artifact, identifier, "review", pdf,
+                               filename=f"修改意见_{Path(outcome.resume_name).stem}.pdf")
+        # 只有意见 PDF 已成功保存才创建可见会话，原始字节仍只在内存。
+        _expire_reviews()
+        _review_sessions[identifier] = (monotonic() + report_store.TTL_MINUTES * 60, outcome, raw, outcome.resume_name)
+        # 被拒的模型候选属于内部审计，不在响应中泄漏未经筛选的模型文本。
+        public_report = outcome.report.model_dump(exclude={"rejected_issues"})
+        public_report["rejected_issues"] = []
+        # 显式选择响应字段，禁止自动序列化携带原文的内部 Outcome。
+        return _public_revise(outcome, {"review_id": identifier, "report": public_report, "profile": outcome.profile.model_dump(),
+                "mode": outcome.profile.source, "stats": _revise_stats(outcome),
+                "delta": outcome.delta.model_dump() if outcome.delta else None})
+    except HTTPException:
+        raise
+    except ProfileNotConfirmed as exc:
+        raise HTTPException(422, "请先确认岗位画像，再生成修改意见") from exc
+    except match_pipeline.ModelUnavailableError as exc:
+        raise HTTPException(503, "AI 服务暂时不可用，请稍后重试") from exc
+    # 文件、参数和依赖故障保持不同状态码，异常正文不向客户端透传。
+    except FileParseError as exc:
+        raise HTTPException(422, "简历文件无法解析；扫描件请先转换为文本版") from exc
+    except ValueError as exc:
+        raise HTTPException(422, "简历或岗位信息无效，请检查文件类型、JD 长度及画像确认") from exc
+    except Exception as exc:
+        # 不打印异常对象、栈或模型请求，防止材料从失败日志泄漏。
+        raise HTTPException(500, "修改意见报告生成失败，请稍后重试") from exc
+    finally:
+        await file.close()
+
+
+@revise_routes.post("/revise/apply", tags=["修改意见"])
+async def revise_apply(data: ReviseApplyRequest) -> dict:
+    """以缓存原件应用勾选项，只有两份最终文件均保存成功后才返回下载链接。"""
+    # 必须先清理过期会话，不能因为内存仍有字节就允许过期报告继续应用。
+    _expire_reviews()
+    if not report_store._valid(data.review_id) or data.review_id not in _review_sessions:
+        raise HTTPException(404, "修改意见不存在或已过期，请重新分析")
+    if data.selected_ids == []:
+        raise HTTPException(422, "没有选择可自动修改的条目")
+    _, original, raw, filename = _review_sessions[data.review_id]
+    # 只允许当前报告的意见编号，不能引用其它报告或提交自造条目。
+    known = {issue.id for issue in original.report.issues}
+    if data.selected_ids is not None and set(data.selected_ids) - known:
+        raise HTTPException(422, "勾选条目无效，请重新选择")
+    try:
+        # 每次操作使用深拷贝，并行或重复申请都从同一原件出发，不覆盖原始分析。
+        outcome = original.model_copy(deep=True)
+        result = await revise_pipeline.run_apply(outcome=outcome, raw=raw, filename=filename,
+                                                 selected_ids=data.selected_ids)
+        if not result.applied:
+            raise HTTPException(422, "没有可自动修改的条目，请按未采用原因核实真实经历")
+        # 两份文件各有独立产物 ID，使 load_artifact(id) 的返回始终唯一。
+        review_id, resume_id = uuid4().hex, uuid4().hex
+        await run_in_threadpool(report_store.save_artifact, review_id, "review", result.review_pdf,
+                               filename=f"修改意见_{Path(filename).stem}.pdf")
+        await run_in_threadpool(report_store.save_artifact, resume_id, "resume", result.resume_bytes,
+                               filename=f"{Path(filename).stem}_修改版.{result.resume_ext}")
+        # 响应仅含必要的逐条证据与 delta，不返回 Outcome、原始文件或解析结构。
+        return _public_revise(outcome, {"review_pdf_url": f"/revise/file/{review_id}/review",
+                "resume_url": f"/revise/file/{resume_id}/resume", "resume_ext": result.resume_ext,
+                "applied": result.applied, "skipped": result.skipped,
+                "delta": outcome.delta.model_dump() if outcome.delta else None})
+    except HTTPException:
+        raise
+    except match_pipeline.ModelUnavailableError as exc:
+        raise HTTPException(503, "AI 服务暂时不可用，请稍后重试") from exc
+    except ValueError as exc:
+        raise HTTPException(422, "所选修改无法应用，请核对原文件与修改意见") from exc
+    except Exception as exc:
+        raise HTTPException(500, "修改版文件生成失败，请稍后重试") from exc
+
+
+@revise_routes.get("/revise/file/{artifact_id}/{kind}", tags=["修改意见"])
+async def revise_file(artifact_id: str, kind: str) -> Response:
+    """仅下载有效 ID 对应的实际 kind，类型与展示名均从受控存储读取。"""
+    # kind 和 ID 都在读文件之前验证，合法 ID 也不能下载另一类型的产物。
+    if kind not in report_store.ARTIFACT_KINDS or report_store.artifact_kind(artifact_id) != kind:
+        raise HTTPException(404, "文件不存在或已过期")
+    artifact = await run_in_threadpool(report_store.load_artifact, artifact_id)
+    if artifact is None:
+        raise HTTPException(404, "文件不存在或已过期")
+    data, filename = artifact
+    # 展示名的扩展名已经由存储白名单约束，下载头使用 RFC5987 编码。
+    media = "application/pdf" if filename.lower().endswith(".pdf") else (
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+    disposition = "attachment; filename*=UTF-8''" + quote(filename, safe="")
+    return Response(data, media_type=media, headers={"Content-Disposition": disposition})
+
+
+@revise_routes.get("/revise/stats", tags=["修改意见"])
+async def revise_stats() -> dict:
+    """返回多产出统计并清理过期原件会话，不枚举任何用户或文档信息。"""
+    # 统计路径也释放原件缓存，避免只有分析请求才触发会话 TTL。
+    _expire_reviews()
+    return await run_in_threadpool(report_store.stats_artifacts)
+
+
+app.include_router(revise_routes)
+# 新路由注册独立于原评分 router，不修改旧接口的表单字段数或异常处理。
 
 
 if __name__ == "__main__":

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from difflib import SequenceMatcher
 from io import BytesIO
 from pathlib import PurePosixPath
 import re
@@ -32,6 +33,12 @@ UNCHANGED = "需本人按真实月份/学历补全"
 NOT_FOUND = "未在正文找到（可能在文本框/页眉/艺术字）"
 ALREADY_CHANGED = "同一段落已有改动"
 TRACKED = "文档含未接受的修订痕迹，请先在 Word 里接受/拒绝后再试"
+JD_TOO_SIMILAR = "改写与 JD 原句过于雷同，等于抄 JD，建议改成你真实做过的事"
+# 只对达到最短长度的建议检查 JD 雷同度，短技能句不参与判定。
+JD_SIMILARITY_LIMIT = 0.7
+MIN_SIMILARITY_CHECK_LEN = 6
+# 短技术词不代表职责措辞，JD 项也必须在归一化后达到最短长度。
+MIN_JD_ITEM_LEN = 6
 # 只去任务书指定的分隔符；句号、大小写等差异不能被宽松匹配放过。
 _NORMALIZE = re.compile(r"[\s\u3000·|/]+")
 
@@ -64,6 +71,24 @@ def _normalize(text: str) -> str:
     """仅消除空白、全角空格与三种分隔符，返回整段比较键。"""
     # 不更改大小写，不删除其他标点，也不对 Unicode 字形做兼容归一。
     return _NORMALIZE.sub("", text)
+
+
+def jd_overlap(after: str, jd_items: list[str]) -> float:
+    """返回归一化后与合格 JD 项的有序匹配长度占较短句长度的最大值。"""
+    a = _normalize(after)
+    if len(a) < MIN_SIMILARITY_CHECK_LEN:
+        # 短建议不判雷同；空建议与人工补全仍由既有护栏先处理。
+        return 0.0
+    overlap = 0.0
+    for item in jd_items:
+        b = _normalize(item)
+        if len(b) < MIN_JD_ITEM_LEN:
+            # Go/MySQL 等短项不能因较小的分母把正常改写判为抄 JD。
+            continue
+        # 按用户补充确认，累加有序且不重叠的匹配块，覆盖仅插入「的」等字的抄写。
+        matched = sum(block.size for block in SequenceMatcher(None, a, b).get_matching_blocks())
+        overlap = max(overlap, matched / min(len(a), len(b)))
+    return overlap
 
 
 def _manual_reason(item: AdaptedText) -> str | None:
@@ -307,8 +332,9 @@ def rewrite_pdf_from_text(text: str, adaptations: list[AdaptedText], *, job_titl
 
 def apply_revisions(*, rep: RevisionReport, diagnosis: DiagnosisReport, raw: bytes,
                     filename: str, job_title: str, resume_text: str, hard=None,
-                    selected_ids: list[str] | None = None) -> ApplyOutcome:
-    """以勾选建议一次构建两份文件；所有回填只进入深拷贝，不修改传入报告。"""
+                    selected_ids: list[str] | None = None,
+                    jd_items: list[str] | None = None) -> ApplyOutcome:
+    """以勾选建议一次构建两份文件，回填深拷贝；M7 传 job/profile 的必备项与职责供闸门核对。"""
     started = perf_counter()
     # Windows 或 POSIX 路径均只取文件名；拒绝不支持格式而不是猜测内容。
     resume_name = PurePosixPath(filename.replace("\\", "/")).name
@@ -337,6 +363,11 @@ def apply_revisions(*, rep: RevisionReport, diagnosis: DiagnosisReport, raw: byt
         if not valid:
             # 定位失败的用户文案统一，名词和数字违规则保留护栏给出的具体原因。
             skipped.append(_skip(item, NOT_FOUND if not guard.find_original(resume_text, item.before) else reason))
+            continue
+        if (jd_items and len(_normalize(item.after)) >= MIN_SIMILARITY_CHECK_LEN
+                and jd_overlap(item.after, jd_items) >= JD_SIMILARITY_LIMIT):
+            # 在加入替换列表之前丢弃；Word、PDF 与报告回填均不能再采用该条。
+            skipped.append(_skip(item, JD_TOO_SIMILAR))
             continue
         # 重新从正文核对，不能相信外部填入的 added_terms / kept_numbers。
         item.added_terms = guard.new_tech_terms(item.after, resume_text, "")

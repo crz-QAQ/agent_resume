@@ -1,4 +1,4 @@
-"""M5 A～I 离线验收：真实文件、结构字体逐项比较、产物读回及源码红线检查。"""
+"""M5 A～J 离线验收：真实文件、结构字体逐项比较、产物读回及 JD 雷同度闸门检查。"""
 
 from __future__ import annotations
 
@@ -271,7 +271,15 @@ def _check_d() -> str:
     bad = rewrite.apply_revisions(rep=bad_report, diagnosis=diagnosis, raw=raw,
         filename="guard.docx", job_title="后端工程师", resume_text="负责订单接口开发")
     _expect(not bad.applied and "无原文依据" in bad.skipped[0]["reason"], "未再次核对护栏")
-    return "missing / before==after / 未找到：理由逐字正确；全跳过原因进入报告；新增事实被护栏拒绝"
+    # 即使与 JD 完全一致，新数字也必须先由数字护栏拒绝，不能被雷同原因覆盖。
+    numbered = "负责订单系统接口开发21个"
+    with patch.object(rewrite, "jd_overlap", wraps=rewrite.jd_overlap) as overlap:
+        _jd_rewrite_case(numbered, [numbered], rejected=True, before="交付20个接口",
+                         skip_reason="新增数字无原文依据：21")
+    _expect(overlap.call_count == 0, "数字校验未通过就进入 JD 闸门")
+    # 改写沿用原文数字时正常替换，不能把数字检查收紧为一律拒绝数字。
+    _jd_rewrite_case("完成20个接口交付", ["负责订单系统接口开发"], rejected=False, before="交付20个接口")
+    return "missing / before==after / 未找到：理由逐字正确；全跳过原因进入报告；新增事实被拒绝；数字护栏先于 JD 闸门、原数字可保留"
 
 
 def _check_e() -> str:
@@ -449,20 +457,160 @@ def _check_i() -> str:
     return "时间重叠，需核实（非推测）逐字保留；裸词推测保留；三种完整声明正常剥离"
 
 
+def _jd_rewrite_case(after: str, jd_items: list[str] | None, *, rejected: bool,
+                     before: str = "参与接口实现并整理联调记录", skip_reason: str | None = None) -> None:
+    """通过真实编排入口同时检查 Word/PDF 正文、采纳记录和报告里的拒绝原因。"""
+    # 原句始终与建议不同，避免未变化分支替闸门给出伪成功。
+    report, diagnosis = _inputs([_adapt(before, after)])
+    snapshot = report.model_dump_json(), diagnosis.model_dump_json()
+    document = Document()
+    document.add_paragraph(before)
+    # PDF 输入也是真实可读的原件字节，不用文件头占位冒充文件。
+    originals = {"docx": _raw(document), "pdf": rewrite.rewrite_pdf_from_text(
+        before, [], job_title=report.profile.title, resume_name="JD闸门原件", meta=report.meta)}
+    # 两种输出共用闸门；必须检查实际文件，不能只用 skipped 列表证明未替换。
+    for extension, raw in originals.items():
+        # 显式选中雷同建议也不能绕过检查，选择只控制候选范围。
+        outcome = rewrite.apply_revisions(rep=report, diagnosis=diagnosis, raw=raw,
+            filename=f"jd_gate.{extension}", job_title=report.profile.title, resume_text=before,
+            selected_ids=["R-001"], jd_items=jd_items)
+        # 读取生成后的正文，不以传入 after 或内部替换列表替代产物核对。
+        text = ("\n".join(p.text for p in Document(BytesIO(outcome.resume_bytes)).paragraphs)
+                if extension == "docx" else _text(outcome.resume_bytes))
+        if rejected:
+            # JD 固定文案独立声明；数字反例另传预期，验证原护栏原因仍然优先。
+            reason = skip_reason or "改写与 JD 原句过于雷同，等于抄 JD，建议改成你真实做过的事"
+            _expect(not outcome.applied and outcome.skipped == [
+                {"issue_id": "R-001", "before": before, "reason": reason}], f"{extension} 雷同条目未准确 skipped")
+            _expect(before in text and _compact_text(after) not in _compact_text(text), f"{extension} 偷偷替换了 skipped 条目")
+            _expect(_compact_text(reason) in _compact_text(_text(outcome.review_pdf)), "报告遗漏未采用原因")
+            if extension == "docx":
+                # 全部被闸门跳过时，Word 连打包字节也应保留。
+                _expect(outcome.resume_bytes == raw, "JD 闸门修改了 Word 原字节")
+        else:
+            # 允许项必须同时满足记录成功与正文落地，不能只返回 applied。
+            _expect(len(outcome.applied) == 1 and not outcome.skipped, f"{extension} 正常改写被误拦")
+            _expect(_compact_text(after) in _compact_text(text) and before not in text, f"{extension} 未实际替换正常改写")
+        _expect(snapshot == (report.model_dump_json(), diagnosis.model_dump_json()), "闸门修改了输入报告")
+
+
+def _compact_text(text: str) -> str:
+    """仅去除 PDF 读回加入的排版空白，保留分隔符和原有标点。"""
+    return "".join(text.split())
+
+
+def _check_j1() -> str:
+    """J1：完整搬用 JD 后加字仍须 skipped，分隔符归一化与列表最大值均生效。"""
+    jd = "负责订单系统接口开发与数据库查询性能优化"
+    after = jd + "工作"
+    # 第一项无关，第二项包含全部指定分隔符；应取归一化后的最大重合率。
+    jd_items = ["无关岗位职责", "负 责　订单·系统|接口/开发与数据库查询性能优化"]
+    overlap = rewrite.jd_overlap(after, jd_items)
+    _expect(overlap == 1.0, f"J1 未用较短句长度作分母：{overlap}")
+    _jd_rewrite_case(after, jd_items, rejected=True)
+    # 阈值必须包含等号，不能只在明显高于 0.7 时拦截。
+    boundary = jd[:14] + "补充验收记录"
+    _expect(rewrite.jd_overlap(boundary, [jd]) == 0.7, "J1 阈值样例不是 0.7")
+    _jd_rewrite_case(boundary, [jd], rejected=True)
+    return f"重合率 {overlap:.3f} 与边界 0.700 均 skipped；理由含抄 JD；Word/PDF 原句保留、报告可读"
+
+
+def _check_j2() -> str:
+    """J2：五成重合正常替换，未提供 JD 或空列表时维持原替换行为。"""
+    jd = "负责订单系统接口开发与数据库查询性能优化"
+    after = "负责订单系统接口开发，并补充联调验收记录"
+    overlap = rewrite.jd_overlap(after, [jd])
+    _expect(overlap == 0.5, f"J2 匹配比例错误：{overlap}")
+    _jd_rewrite_case(after, [jd], rejected=False)
+    # 不从画像偷偷补出 jd_items，保证省略新参数的既有调用行为不变。
+    for jd_items in (None, []):
+        _jd_rewrite_case(jd + "工作", jd_items, rejected=False)
+    _expect(rewrite.jd_overlap(" \t　·|/", [jd]) == 0.0 and
+            rewrite.jd_overlap(after, []) == 0.0, "空归一化文本或空 JD 未返回零")
+    return "重合率 0.500 正常替换；未传 JD/空 JD 保持原行为；Word/PDF 实际读回通过"
+
+
+def _check_j3() -> str:
+    """J3：归一化后不足六字完全不检查，恰好六字仍须检查。"""
+    # 分隔符把原始字符串撑到六字以上，JD 本身足够长，仅建议长度触发豁免。
+    after = "完 成　联·调|/稿"
+    jd = "完成联调稿与验收记录"
+    _expect(len("完成联调稿") == 5 and len(after) >= 6 and rewrite.jd_overlap(after, [jd]) == 0.0,
+            "J3 没有覆盖原始长句与归一化短句")
+    # 包装真实函数验证短路，避免只凭正常替换猜测短句未检查。
+    with patch.object(rewrite, "jd_overlap", wraps=rewrite.jd_overlap) as overlap:
+        _jd_rewrite_case(after, [jd], rejected=False)
+    _expect(overlap.call_count == 0, "不足六字仍调用了雷同度检查")
+    boundary = "完成接口联调"
+    _expect(len(boundary) == 6, "J3 长度边界样例不是六字")
+    _jd_rewrite_case(boundary, [boundary], rejected=True)
+    return "归一化后 5 字即使被 JD 包含仍不检查；6 字边界进入闸门；Word/PDF 均通过"
+
+
+def _check_j4() -> str:
+    """J4：十字职责原样搬入必须被拦截。"""
+    jd = "负责订单系统接口开发"
+    # 十字原句不再享受旧的十二字短句豁免。
+    _expect(len(jd) == 10 and rewrite.jd_overlap(jd, [jd]) == 1.0, "十字原句重合率错误")
+    _jd_rewrite_case(jd, [jd], rejected=True)
+    return f"「{jd}」vs JD 10 字：重合率 1.000，Word/PDF 均 skipped"
+
+
+def _check_j5() -> str:
+    """J5：在 JD 十字原句后增加工作内容不能稀释重合率。"""
+    after, jd = "负责订单系统接口开发与性能优化", "负责订单系统接口开发"
+    # 分母取较短 JD 长度，完整搬用再加字仍为完全重合。
+    _expect(rewrite.jd_overlap(after, [jd]) == 1.0, "加字稀释了完整 JD 的重合率")
+    _jd_rewrite_case(after, [jd], rejected=True)
+    return f"「{after}」vs JD 10 字：重合率 1.000，Word/PDF 均 skipped"
+
+
+def _check_j6() -> str:
+    """J6：按用户补充确认，仅插入「的」不能绕过 JD 雷同度闸门。"""
+    after, jd = "负责订单系统的接口开发", "负责订单系统接口开发"
+    # 先后顺序一致的匹配块合计十字，不能只取六字的最长连续块。
+    _expect(rewrite.jd_overlap(after, [jd]) == 1.0, "插入的字绕过了匹配块重合率")
+    _jd_rewrite_case(after, [jd], rejected=True)
+    return f"「{after}」vs JD 10 字：重合率 1.000，Word/PDF 均 skipped"
+
+
+def _check_j7() -> str:
+    """J7：Go/MySQL 短技术项即使带分隔符也不参与雷同判定。"""
+    after, jd_items = "主导 Go 服务重构与 MySQL 分库", ["Go", "MySQL", " G o　·|/", "My SQL　·|/"]
+    # 原始项可超过六字，但去掉空白与分隔符后仍只算短技术词。
+    _expect(rewrite.jd_overlap(after, jd_items) == 0.0, "短技术词参与了雷同判定")
+    _jd_rewrite_case(after, jd_items, rejected=False)
+    return f"「{after}」vs Go/MySQL：短 JD 项不判，Word/PDF 均正常替换"
+
+
+def _check_j8() -> str:
+    """J8：描述真实治理范围的独立改写不能因共享订单、接口等词被误拦。"""
+    after = "主导订单全链路接口治理，把下单到退款拆成多个可独立发布的阶段"
+    jd_items = ["负责订单系统接口开发"]
+    # 与抄措辞的反例使用同一条 JD，防止靠无关 JD 伪造正常改写通过。
+    overlap = rewrite.jd_overlap(after, jd_items)
+    _expect(overlap < 0.7, f"真实职责改写被误判为抄 JD：{overlap}")
+    _jd_rewrite_case(after, jd_items, rejected=False)
+    return f"「{after}」：重合率 {overlap:.3f}，Word/PDF 均正常替换"
+
+
 def main() -> int:
-    """执行 A1/A2/B～I，逐组继续并汇总退出码，可选保存明确命名的交付样张。"""
+    """执行 A1/A2/B～J8，逐组继续并汇总退出码，可选保存明确命名的交付样张。"""
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output-dir", type=Path, help="只在指定目录保存修改版与逐段比对表，不覆盖源文件")
     args = parser.parse_args()
-    # 总耗时包括所有 A～I 与样张落盘，单次性能另在 H 中明确打印。
+    # 总耗时包括所有 A～J 与样张落盘，单次性能另在 H 中明确打印。
     started = perf_counter()
     groups = (("A1 保版式逐项比对", _check_a1), ("A2 原件不变", _check_a2),
               ("B 跨 run 与匹配", _check_b), ("C 表格递归", _check_c),
               ("D skipped 三态", _check_d), ("E 修订痕迹拒绝", _check_e),
               ("F PDF 重排读回", _check_f), ("G 一次两份", _check_g),
-              ("H 零模型与规范", _check_h), ("I D-M3-06", _check_i))
+              ("H 零模型与规范", _check_h), ("I D-M3-06", _check_i),
+              ("J1 JD 高重合", _check_j1), ("J2 JD 正常改写", _check_j2), ("J3 JD 短句豁免", _check_j3),
+              ("J4 JD 原句", _check_j4), ("J5 JD 原句加字", _check_j5), ("J6 JD 插入的字", _check_j6),
+              ("J7 JD 短技术词", _check_j7), ("J8 JD 独立改写", _check_j8))
     passed = 0
     # 未使用的合成场景也不能联网；任何实际网络动作立即使所在组失败。
     with ExitStack() as stack:

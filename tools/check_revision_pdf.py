@@ -1,4 +1,4 @@
-"""M4 A～I 合成验收：生成、读回和检查 PDF，全程禁止网络、模型与环境文件。"""
+"""M4 A～I 与 K1 合成验收：生成、读回和检查 PDF，全程禁止网络、模型与环境文件。"""
 
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ sys.dont_write_bytecode = True
 
 from app import pdf_font, pdf_kit, report_pdf, revision_pdf as revision
 from app.schemas_match import Deduction
-from app.schemas_revision import AdaptedText, DiagnosisFinding, DiagnosisReport, JobProfile, KwCoverage, ReviewIssue, RevisionReport
+from app.schemas_revision import AdaptedText, DiagnosisFinding, DiagnosisReport, JobProfile, KwCoverage, ReviewIssue, RevisionReport, ScoreDelta
 from app.scoring_rules import HardScore
 
 
@@ -94,16 +94,17 @@ def _inputs() -> tuple[RevisionReport, DiagnosisReport, HardScore]:
     return report, diagnosis, hard
 
 
-def _generate(name: str, report: RevisionReport, diagnosis: DiagnosisReport, hard=None) -> Artifact:
+def _generate(name: str, report: RevisionReport, diagnosis: DiagnosisReport, hard=None,
+              *, delta: ScoreDelta | None = None) -> Artifact:
     """计时生成并用 pdfplumber 实读字节，检查输入未被改动及合成渲染低于 300ms。"""
     # 比较整个序列化快照，能发现元数据或关键词被渲染器原地修改。
-    before = report.model_dump_json(), diagnosis.model_dump_json(), repr(hard)
+    before = report.model_dump_json(), diagnosis.model_dump_json(), repr(hard), repr(delta)
     started = perf_counter()
     data = revision.render_review_pdf(report, diagnosis, job_title=report.profile.title,
-                                      resume_name="合成简历" + name, hard=hard)
+                                      resume_name="合成简历" + name, hard=hard, delta=delta)
     # 性能门槛只计渲染，不把独立 PDF 文本解析耗时混进来。
     elapsed = (perf_counter() - started) * 1000
-    _expect(before == (report.model_dump_json(), diagnosis.model_dump_json(), repr(hard)), f"{name} 修改输入")
+    _expect(before == (report.model_dump_json(), diagnosis.model_dump_json(), repr(hard), repr(delta)), f"{name} 修改输入")
     # 重新打开真实字节流，章节与页数不能来自构建 story 的内存结构。
     with pdfplumber.open(BytesIO(data)) as document:
         item = Artifact(name, data, len(document.pages), "\n".join(page.extract_text() or "" for page in document.pages), elapsed)
@@ -350,8 +351,34 @@ def _check_i() -> str:
     return "；".join(summaries) + "；docstring 100%；七件共用、零模型/网络/环境依赖"
 
 
+def _check_k1() -> str:
+    """K1：传 delta 才在分数对比下方印小字提示，无 delta 的智能修改不印。"""
+    report, diagnosis, hard = _inputs()
+    delta = ScoreDelta(before_total=50, after_total_estimate=55,
+        before_parts={"hard": 33, "semantic": 7, "llm": 10},
+        after_parts={"hard": 33, "semantic": 12, "llm": 10},
+        delta_parts={"hard": 0, "semantic": 5, "llm": 0}, estimated_fields=["llm"],
+        covered_before=1, covered_after=2, notes=["语义覆盖增加；LLM 沿用原分，预估波动 ±2"])
+    # 保留改写对照，使无 delta 的反例仍包含完整智能修改章节。
+    report.adaptations = [AdaptedText(issue_id="R-001", location="工作经历", before="上游改前", after="上游改后",
+                                     added_terms=[], kept_numbers=[])]
+    with_delta = _generate("K1-delta", report, diagnosis, hard, delta=delta)
+    without_delta = _generate("K1-no-delta", report, diagnosis, hard)
+    warning = "语义分对 JD 原句高度敏感：若只是把 JD 措辞搬进简历，分数会虚高，面试时无法自证"
+    text = _compact(with_delta.text)
+    _expect(_compact(warning) in text and "虚高" in text, "传 delta 没有完整虚高提示")
+    # 顺序限定在分数对比与改写对照之间，不能把文案印到无关页脚。
+    _expect(text.index("分数对比") < text.index(_compact(warning)) < text.index("上游改前"), "虚高提示不在分数对比下方")
+    _expect("智能修改" in without_delta.text and "虚高" not in without_delta.text, "无 delta 仍印虚高提示")
+    with pdfplumber.open(BytesIO(with_delta.data)) as document:
+        # 仅定位完整词「虚高」，避免把意见严重度「高」的正文字号混入提示。
+        sizes = [char["size"] for page in document.pages for match in page.search("虚高") for char in match["chars"]]
+    _expect(sizes and all(abs(size - 8) < .1 for size in sizes), "虚高提示不是 8pt 小字")
+    return "传 delta：分数对比下方完整提示含虚高、8pt；不传 delta：智能修改无虚高提示"
+
+
 def main() -> int:
-    """运行九组并保存三个稳定样张，输出每例真实页数/字节及汇总耗时。"""
+    """运行十组并保存三个稳定样张，输出每例真实页数/字节及汇总耗时。"""
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", line_buffering=True)
     started = perf_counter()
@@ -359,7 +386,8 @@ def main() -> int:
     passed = 0
     groups = (("A 正常", _check_a), ("B 画像", _check_b), ("C 失败", _check_c),
               ("D 三态", _check_d), ("E ATS 排序", _check_e), ("F 不建议改", _check_f),
-              ("G 每页页脚/分页", _check_g), ("H 字体", _check_h), ("I 规范", _check_i))
+              ("G 每页页脚/分页", _check_g), ("H 字体", _check_h), ("I 规范", _check_i),
+              ("K1 分数虚高提示", _check_k1))
     with ExitStack() as stack:
         # socket 双重封锁；发生任何请求都直接失败，不能假装成离线成功。
         for target in ("socket.socket.connect", "socket.socket.connect_ex", "socket.getaddrinfo"):

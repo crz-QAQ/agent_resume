@@ -1,4 +1,4 @@
-"""M6 A～I：断网实跑本地评分、检查全部契约，并独立回归 M4 的九组 PDF 用例。"""
+"""M6 A～I：断网实跑本地评分、检查全部契约，并独立回归 M4 的全部 PDF 用例。"""
 
 from __future__ import annotations
 
@@ -270,7 +270,7 @@ def _pdf_text(data: bytes) -> str:
 
 
 def _check_i() -> str:
-    """读回正负分 PDF、三列与红字，并在新进程完整运行 M4 九组回归。"""
+    """读回正负分 PDF、三列与红字，并在新进程完整运行 M4 回归。"""
     # 意见和诊断复用 M4 的既有真实数据结构，只额外传入 ScoreDelta。
     report, diagnosis, hard = pdf_inputs()
     report.adaptations = [_adapt(COOKING, ITEMS[0])]
@@ -328,9 +328,12 @@ def _check_i() -> str:
         for path, content in originals.items():
             path.write_bytes(content)
     print("M4 回归完整输出：\n" + regression.stdout.rstrip())
-    # 看退出码与汇总两项，不能让部分失败输出中碰巧含有「通过」就算回归成功。
-    _expect(regression.returncode == 0 and "通过 9/9" in regression.stdout, "M4 回归失败：" + regression.stderr)
-    return "三列/三项明细/LLM ±2/负数红字读回通过；delta=None 保持原行为；M4 9/9"
+    # 成败只由子进程退出码决定，新增用例不应因为历史通过数量而被误判失败。
+    _expect(regression.returncode == 0, "M4 回归失败：" + regression.stderr)
+    # 末行汇总只用于日志展示；即使汇总格式改变也不能推翻成功的退出码。
+    summary = next((line.split("；", 1)[0] for line in reversed(regression.stdout.splitlines())
+                    if line.startswith("通过 ")), "未提供通过数")
+    return f"三列/三项明细/LLM ±2/负数红字读回通过；delta=None 保持原行为；M4 {summary}"
 
 
 def main() -> int:

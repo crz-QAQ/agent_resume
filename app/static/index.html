@@ -127,6 +127,35 @@
     }
     /* 减少动态偏好的用户不需要观看任何动画；页面本身没有持续动画。 */
     @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; } }
+    /* 标签页只控制面板可见性，评分表单及其事件处理保持原样。 */
+    .tabs { display: flex; gap: 8px; border-bottom: 1px solid #dfe5eb; margin-bottom: 22px; }
+    .tab-button { padding: 12px 22px; border: 0; border-bottom: 3px solid transparent;
+      background: transparent; color: #68788a; cursor: pointer; font-weight: 650; }
+    .tab-button[aria-selected="true"] { color: #254b77; border-bottom-color: #254b77; }
+    /* 修改控件均限定在新面板，避免影响第一个标签页的布局。 */
+    #revise-panel input[type="text"] { width: 100%; padding: 10px 12px; border: 1px solid #bcc9d6; border-radius: 7px; }
+    #revise-panel textarea { min-height: 150px; }
+    .revise-draft { margin-top: 20px; border-top: 1px solid #e0e6ed; padding-top: 20px; }
+    .profile-warning { padding: 12px; background: #fee4e2; border: 1px solid #edbbb6; border-radius: 7px; color: #982e29; font-size: 13px; }
+    /* 勾选项与可编辑文字并排，使用原生 checkbox 保留键盘语义。 */
+    .profile-row { display: flex; align-items: flex-start; gap: 8px; margin-top: 9px; }
+    .profile-row input[type="checkbox"] { margin-top: 13px; flex: 0 0 auto; }
+    .revise-card { margin-top: 18px; border: 1px solid #dfe5eb; border-radius: 10px; padding: 18px; }
+    .revise-card h3 { margin-right: 8px; }
+    .revise-card p { margin-top: 9px; font-size: 13px; overflow-wrap: anywhere; white-space: pre-wrap; }
+    .revise-select { display: flex; align-items: center; gap: 7px; margin: 0; font-size: 12px; white-space: nowrap; }
+    /* 原句证据与可用建议分开着色，人工动作不伪装为自动改写。 */
+    .revise-original { padding: 12px; background: #f2f4f7; border-radius: 7px; }
+    .revise-suggestion { padding: 12px; background: #ecfdf3; border-radius: 7px; }
+    .revise-guidance { padding: 12px; background: #f7f9fb; border-radius: 7px; color: #68788a; }
+    .revise-unavailable { color: #8b5e34; }
+    .revise-output { display: grid; gap: 18px; }
+    /* 分数表只显示服务器结果；负差值提示和语义敏感提示独立可读。 */
+    .revise-delta { margin-top: 22px; }
+    .delta-negative { color: #b42318; margin-top: 10px; font-size: 13px; }
+    .delta-note { color: #68788a; font-size: 12px; margin-top: 10px; }
+    #revise-downloads { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
+    #revise-skipped { padding-left: 20px; font-size: 13px; }
   </style>
 </head>
 <body>
@@ -138,6 +167,12 @@
       <p class="intro">上传一份简历，粘贴岗位描述，查看分数与依据，再下载 PDF 报告。</p>
       <p class="privacy"><strong>隐私提示：</strong>简历含敏感信息，请勿上传到公共环境。本页不保存输入，刷新即清空。服务应只监听 127.0.0.1；v1 无鉴权，请勿暴露公网。</p>
     </header>
+    <!-- 两个面板共享页面，不导航到外站或改变已有评分请求。 -->
+    <nav class="tabs" role="tablist" aria-label="简历工具">
+      <button id="score-tab" class="tab-button" role="tab" aria-selected="true" aria-controls="score-panel">简历评分</button>
+      <button id="revise-tab" class="tab-button" role="tab" aria-selected="false" aria-controls="revise-panel" tabindex="-1">修改意见</button>
+    </nav>
+    <section id="score-panel" role="tabpanel" aria-labelledby="score-tab">
     <div class="workspace">
       <!-- 原生表单使用现有接口字段名，不增加新的后端协议。 -->
       <form id="match-form" class="panel" autocomplete="off" novalidate>
@@ -189,6 +224,53 @@
     </div>
     <!-- 下载地址只由本次 report_id 构造，不要求用户复制标识。 -->
     <div id="download-area" class="download" hidden><a id="download" class="button" download>下载 PDF 报告</a><p class="hint">报告保留 30 分钟，过期后请重新评分。</p></div>
+    </section>
+    <!-- 新面板只上传单个文件；岗位画像必须由用户明确确认。 -->
+    <section id="revise-panel" role="tabpanel" aria-labelledby="revise-tab" hidden>
+      <div class="workspace">
+        <form id="revise-form" class="panel" autocomplete="off" novalidate>
+          <p class="step">01 / 修改材料</p><h2>让经历表达更清楚</h2>
+          <label for="revise-title">岗位名称（必填）</label>
+          <input id="revise-title" type="text" required minlength="2" placeholder="如 Go 后端工程师或 FDE 交付工程师">
+          <label for="revise-jd">岗位 JD（选填）</label>
+          <textarea id="revise-jd" placeholder="有真实 JD 时优先粘贴；未填写时将先生成待确认的岗位画像。"></textarea>
+          <p id="revise-jd-hint" class="hint">未填写 JD 时，须先确认岗位画像。</p>
+          <label for="revise-file">简历文件</label>
+          <input id="revise-file" type="file" accept=".pdf,.docx" required>
+          <p id="revise-file-hint" class="hint">PDF / DOCX，最大 10MB；Word 可保留原版式。</p>
+          <!-- 初始禁用防止页面脚本未就绪时提交。 -->
+          <button id="revise-start" class="button" type="submit" disabled>开始分析</button>
+          <p id="revise-error" class="error" role="alert" hidden></p>
+          <section id="revise-profile" class="revise-draft" aria-label="岗位画像草案" hidden>
+            <h3>岗位画像草案</h3>
+            <p class="profile-warning">以下要求由系统按岗位名称推测，非岗位真实 JD</p>
+            <p class="hint">请核对、编辑要求，取消不适用的条目。</p>
+            <h3>必备要求</h3><div id="profile-must-have"></div>
+            <h3>岗位职责</h3><div id="profile-responsibilities"></div>
+            <button id="revise-confirm" class="button" type="button">确认画像并分析</button>
+          </section>
+        </form>
+        <div class="revise-output">
+          <section id="revise-empty" class="panel empty"><h2>先核对事实，再调整表达</h2>
+            <p>每条建议都带原句证据与风险提醒；没有的经历需要你本人补充。</p></section>
+          <section id="revise-result" class="panel" aria-live="polite" hidden>
+            <p class="step">02 / 修改意见</p><h2 id="revise-heading" tabindex="-1"></h2>
+            <p id="revise-mode" class="hint"></p><p id="revise-counts" class="hint"></p>
+            <div id="revise-status" class="status" role="status" hidden></div>
+            <div id="revise-cards"></div><div id="revise-delta" class="revise-delta"></div>
+            <div class="download"><a id="revise-review-download" class="button" download>下载修改意见 PDF</a></div>
+            <!-- 是否可自动修改来自 M5 预演，不把缺失能力变成可采纳经历。 -->
+            <button id="revise-apply" class="button" type="button" disabled>生成修改版</button>
+            <p id="revise-apply-hint" class="hint"></p>
+            <div id="revise-downloads" hidden>
+              <a id="revise-resume-download" class="button" download>下载修改后简历</a>
+              <a id="revise-final-review" class="button" download>下载修改意见报告</a>
+            </div>
+            <ul id="revise-skipped" hidden></ul>
+          </section>
+        </div>
+      </div>
+    </section>
     <footer>resume-agent · 评分辅助判断，最终决定由人作出</footer>
   </main>
   <script>
@@ -422,6 +504,225 @@
     window.addEventListener("pageshow", resetPage);
     // 首次脚本执行也初始化一次，不依赖浏览器是否发送恢复事件。
     resetPage();
+  </script>
+  <script>
+    // 新面板使用独立作用域，不复用或覆盖评分表单的 busy 与请求状态。
+    (() => {
+      "use strict";
+      const state = {busy: false, profileHash: null, review: null};
+      const reviseForm = document.getElementById("revise-form");
+      /** 仅在本页固定 ID 中查找节点。 */
+      function node(id) { return document.getElementById(id); }
+      /** 切换可见面板，同时维护原生 tab 的选择与键盘焦点语义。 */
+      function activateTab(name) {
+        for (const key of ["score", "revise"]) {
+          const selected = key === name;
+          node(key + "-tab").setAttribute("aria-selected", String(selected));
+          node(key + "-tab").tabIndex = selected ? 0 : -1;
+          node(key + "-panel").hidden = !selected;
+        }
+      }
+      /** 校验基本材料；短 JD 只提示，由后端决定是否接受。 */
+      function validateRevise() {
+        const file = node("revise-file").files[0];
+        const titleOK = Array.from(node("revise-title").value.trim()).length >= 2;
+        const fileOK = !!file && /\.(pdf|docx)$/i.test(file.name) && file.size <= 10 * 1024 * 1024;
+        const jdLength = Array.from(node("revise-jd").value.trim()).length;
+        // 不因短 JD 禁用开始按钮，保留任务书要求的提示行为。
+        node("revise-jd-hint").textContent = jdLength > 0 && jdLength < 20 ?
+          "JD 不足 20 字，请补充完整；服务会校验岗位要求。" : jdLength ? "将依据你提供的真实 JD 分析。" : "未填写 JD 时，须先确认岗位画像。";
+        node("revise-jd-hint").classList.toggle("invalid", jdLength > 0 && jdLength < 20);
+        node("revise-file-hint").textContent = file && !fileOK ? "请选择不超过 10MB 的 PDF 或 DOCX 文件。" : "PDF / DOCX，最大 10MB；Word 可保留原版式。";
+        node("revise-start").disabled = state.busy || !titleOK || !fileOK;
+        // 勾选数量仅控制按钮；实际可替换性仍交给后端 M5 护栏。
+        const selected = node("revise-cards").querySelectorAll("input:checked:not(:disabled)").length;
+        node("revise-apply").disabled = state.busy || !state.review || selected === 0;
+        node("revise-apply-hint").textContent = state.review && selected === 0 ? "暂无选中的可自动修改条目，请按人工指引核实信息。" : "";
+        return titleOK && fileOK;
+      }
+      /** 请求期间锁定输入，防止旧材料的结果覆盖新材料。 */
+      function setBusy(busy, applying = false) {
+        state.busy = busy;
+        for (const id of ["revise-title", "revise-jd", "revise-file", "revise-confirm"]) node(id).disabled = busy;
+        for (const input of node("revise-profile").querySelectorAll("input")) input.disabled = busy;
+        // 可修改卡片结束请求后恢复，原本不可修改的项目始终灰显。
+        for (const input of node("revise-cards").querySelectorAll("input")) input.disabled = busy || input.dataset.unavailable === "true";
+        node("revise-start").textContent = busy && !applying ? "正在分析（10-30 秒）" : "开始分析";
+        node("revise-apply").textContent = busy && applying ? "正在生成修改版…" : "生成修改版";
+        reviseForm.setAttribute("aria-busy", String(busy)); validateRevise();
+      }
+      /** 材料变化后撤下旧报告、旧指纹和旧下载地址。 */
+      function clearRevise() {
+        state.profileHash = null; state.review = null;
+        for (const id of ["revise-result", "revise-profile", "revise-downloads", "revise-skipped", "revise-error"]) node(id).hidden = true;
+        for (const id of ["revise-review-download", "revise-resume-download", "revise-final-review"]) node(id).removeAttribute("href");
+        node("revise-cards").replaceChildren(); node("revise-empty").hidden = false; validateRevise();
+      }
+      /** 将网络、JSON 与中文业务错误收口，禁止对象直接进入页面。 */
+      async function requestJSON(url, options) {
+        let response, payload;
+        try { response = await fetch(url, options); }
+        catch { throw new Error("无法连接服务，请稍后重试。"); }
+        try { payload = await response.json(); }
+        catch { throw new Error("服务响应无法读取，请稍后重试。"); }
+        if (!response.ok) throw new Error(detailMessage(payload && payload.detail, "分析服务暂时不可用，请稍后重试。"));
+        return payload;
+      }
+      /** 展示可编辑、可勾选的画像草案，确认动作独立于普通分析按钮。 */
+      function renderDraft(payload) {
+        if (!payload.profile || typeof payload.profile_hash !== "string") throw new Error("岗位画像不完整，请重新生成。");
+        state.profileHash = payload.profile_hash;
+        for (const [key, target] of [["must_have", "profile-must-have"], ["responsibilities", "profile-responsibilities"]]) {
+          node(target).replaceChildren();
+          for (const [index, value] of payload.profile[key].entries()) {
+            // 每项提供明确可访问名称，后端文字只作为 input.value 处理。
+            const row = element("div", "", "profile-row");
+            const checkbox = document.createElement("input"); checkbox.type = "checkbox"; checkbox.checked = true;
+            checkbox.setAttribute("aria-label", "采用第 " + (index + 1) + " 项");
+            const input = document.createElement("input"); input.type = "text"; input.value = readable(value, "");
+            input.setAttribute("aria-label", key === "must_have" ? "必备要求" : "岗位职责");
+            row.append(checkbox, input); node(target).append(row);
+          }
+        }
+        node("revise-profile").hidden = false;
+      }
+      /** 只提交被保留的画像条目，服务端仍核对原草案指纹。 */
+      function profileEdits() {
+        const edits = {};
+        for (const [key, target] of [["must_have", "profile-must-have"], ["responsibilities", "profile-responsibilities"]]) {
+          edits[key] = [];
+          for (const row of node(target).children) {
+            if (row.children[0].checked && row.children[1].value.trim()) edits[key].push(row.children[1].value.trim());
+          }
+        }
+        return edits;
+      }
+      /** 确定三态文案，不把人工补全显示成已经完成的改写。 */
+      function suggestion(issue) {
+        const after = readable(issue.suggested_text, "");
+        if (issue.category === "missing" || !after.trim()) return ["（不可代写：如确有该经历，请在技能栏补充并说明使用场景）", false];
+        if (after.replace(/\s/g, "") === readable(issue.original_text, "").replace(/\s/g, "")) return ["（此行需你补全：按实际在职月份/学历填写，系统不代拟）", false];
+        return [after, true];
+      }
+      /** 按上游意见及 M5 预演结果绘制卡片，未经允许的项目默认不可选。 */
+      function renderCards(report) {
+        const target = node("revise-cards"); target.replaceChildren();
+        const automatic = new Set(report.meta.auto_applicable_ids || []);
+        const skipped = new Map((report.skipped || []).map(item => [item.issue_id, item.reason]));
+        const severity = {high: "高", medium: "中", low: "低"};
+        for (const issue of report.issues) {
+          const card = element("article", "", "revise-card"); const head = element("div", "", "section-head");
+          head.append(element("h3", issue.id + " · " + readable(severity[issue.severity])));
+          const label = element("label", "采用", "revise-select"); const checkbox = document.createElement("input");
+          const [text, editable] = suggestion(issue); const available = editable && automatic.has(issue.id);
+          // 条目编号只用于选择，不提交浏览器里的 before/after 文本。
+          checkbox.type = "checkbox"; checkbox.value = issue.id; checkbox.checked = available; checkbox.disabled = !available;
+          checkbox.dataset.unavailable = String(!available); checkbox.addEventListener("change", validateRevise);
+          label.prepend(checkbox); head.append(label); card.append(head);
+          card.append(element("p", "原文 · " + readable(issue.location), "hint"));
+          card.append(element("p", issue.original_text, "revise-original"));
+          card.append(element("p", "建议改为")); card.append(element("p", text, editable ? "revise-suggestion" : "revise-guidance"));
+          for (const [title, key] of [["为什么改", "why"], ["JD 依据", "jd_evidence"], ["改完的好处", "gain"], ["风险提示", "risk_note"]]) card.append(element("p", title + "：" + readable(issue[key])));
+          if (!available) card.append(element("p", readable(skipped.get(issue.id), "此项需要本人核实或补充，不自动修改。"), "revise-unavailable"));
+          target.append(card);
+        }
+        if (!report.issues.length) target.append(element("p", "本次没有可用意见，请核对材料或补充真实 JD。", "hint"));
+      }
+      /** 仅格式化服务器分数和差值，LLM 沿用值明确标为预估。 */
+      function renderDelta(delta, meta = {}) {
+        const target = node("revise-delta"); target.replaceChildren();
+        if (!delta) return;
+        target.append(element("h3", "分数对比"));
+        const table = document.createElement("table"); const head = document.createElement("thead"); const header = document.createElement("tr");
+        for (const title of ["项目", "改前", "改后预估", "变化"]) header.append(element("th", title));
+        head.append(header); table.append(head); const body = document.createElement("tbody");
+        const rows = [["总分 / 100", delta.before_total, delta.after_total_estimate, delta.after_total_estimate - delta.before_total]];
+        const llmMissing = meta.llm_estimated === true;
+        const llmTitle = llmMissing ? "LLM / 30：未取到（改前总分不含 LLM 项）" : "LLM / 30（预估 ±" + (delta.llm_tolerance ?? 2) + "）";
+        for (const [key, title] of [["hard", "硬性 / 40（精确）"], ["semantic", "语义 / 30（精确）"], ["llm", llmTitle]]) rows.push([title, delta.before_parts[key], delta.after_parts[key], delta.delta_parts[key]]);
+        for (const values of rows) {
+          const row = document.createElement("tr");
+          for (const [index, value] of values.entries()) cell(row, ["项目", "改前", "改后预估", "变化"][index], index === 3 && value > 0 ? "+" + value : value);
+          body.append(row);
+        }
+        table.append(body); target.append(table);
+        if (llmMissing) target.append(element("p", "LLM 复核分未取到，改前总分与改后预估均不含 LLM 项，请重新评分。", "delta-note"));
+        if (delta.after_total_estimate < delta.before_total) target.append(element("p", "本次改写后预估分下降，建议只采用部分建议", "delta-negative"));
+        // 敏感提示属于分数对比，不混入改后简历正文或无 delta 的空态。
+        target.append(element("p", "语义分对 JD 原句高度敏感：若只是把 JD 措辞搬进简历，分数会虚高，面试时无法自证", "delta-note"));
+        for (const note of delta.notes || []) target.append(element("p", note, "delta-note"));
+      }
+      /** 展示本次意见和来源，下载路径仅由校验后的服务器 ID 构造。 */
+      function renderReview(payload) {
+        if (!/^[0-9a-f]{32}$/.test(payload.review_id) || !payload.report || !Array.isArray(payload.report.issues)) throw new Error("修改意见不完整，请重新分析。");
+        state.review = payload;
+        node("revise-heading").textContent = readable(payload.profile.title, "修改意见");
+        node("revise-mode").textContent = payload.mode === "inferred" ? "岗位画像（推测）· 非真实 JD" : "依据：用户提供的真实 JD";
+        const stats = payload.stats;
+        node("revise-counts").textContent = "高 " + stats.high + " / 中 " + stats.medium + " / 低 " + stats.low + "；缺口 " + stats.missing + " 个";
+        const status = node("revise-status"); const needs = payload.report.meta.status;
+        status.hidden = !["needs_review", "failed"].includes(needs);
+        status.className = "status " + (needs === "failed" ? "failed" : "needs-review");
+        status.textContent = (needs === "failed" ? "分析未完成：" : "需要人工复核：") + detailMessage(payload.report.meta.reasons, readable(payload.report.meta.reason, "请核对原始信息与每条风险提醒。"));
+        renderCards(payload.report); renderDelta(payload.delta, payload.report.meta);
+        node("revise-review-download").href = "/revise/file/" + payload.review_id + "/review";
+        node("revise-empty").hidden = true; node("revise-result").hidden = false; node("revise-profile").hidden = true;
+        node("revise-heading").focus({preventScroll: true});
+      }
+      /** 请求分析；未提供 JD 时，普通提交只展示草案，不自动确认。 */
+      async function startReview(confirmed = false) {
+        if (state.busy || !validateRevise()) return;
+        node("revise-error").hidden = true; setBusy(true);
+        try {
+          const jdText = node("revise-jd").value.trim();
+          if (!jdText && !confirmed) {
+            renderDraft(await requestJSON("/revise/profile?job_title=" + encodeURIComponent(node("revise-title").value.trim())));
+            return;
+          }
+          // 确认按钮也必须持有当前草案指纹，不能凭空提交 confirmed=true。
+          if (!jdText && !state.profileHash) throw new Error("请先生成并确认岗位画像。");
+          const data = new FormData(); data.append("file", node("revise-file").files[0]);
+          data.append("job_title", node("revise-title").value.trim()); data.append("jd_text", jdText);
+          if (!jdText) { data.append("profile_hash", state.profileHash); data.append("profile_edits", JSON.stringify(profileEdits())); }
+          renderReview(await requestJSON("/revise/review", {method: "POST", body: data}));
+        } catch (error) {
+          node("revise-error").textContent = readable(error && error.message, "分析失败，请稍后重试。"); node("revise-error").hidden = false;
+        } finally { setBusy(false); }
+      }
+      /** 只提交编号，真实应用由服务器检查并返回两份独立产物。 */
+      async function applyReview() {
+        if (state.busy || !state.review) return;
+        const selected = Array.from(node("revise-cards").querySelectorAll("input:checked:not(:disabled)"), input => input.value);
+        if (!selected.length) return;
+        node("revise-error").hidden = true; node("revise-downloads").hidden = true; setBusy(true, true);
+        try {
+          const payload = await requestJSON("/revise/apply", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({review_id: state.review.review_id, selected_ids: selected})});
+          // 两个下载 URL 都限定在同源固定路由，绝不执行模型文本里的链接。
+          if (!/^\/revise\/file\/[0-9a-f]{32}\/review$/.test(payload.review_pdf_url) || !/^\/revise\/file\/[0-9a-f]{32}\/resume$/.test(payload.resume_url)) throw new Error("下载地址不完整，请重新生成。");
+          node("revise-resume-download").href = payload.resume_url; node("revise-final-review").href = payload.review_pdf_url;
+          node("revise-resume-download").textContent = "下载修改后简历（." + readable(payload.resume_ext) + "）";
+          node("revise-downloads").hidden = false; node("revise-skipped").replaceChildren();
+          for (const item of payload.skipped || []) node("revise-skipped").append(element("li", readable(item.issue_id) + "：" + readable(item.reason)));
+          node("revise-skipped").hidden = !node("revise-skipped").childElementCount; renderDelta(payload.delta, state.review.report.meta);
+        } catch (error) {
+          node("revise-error").textContent = readable(error && error.message, "修改版生成失败，请稍后重试。"); node("revise-error").hidden = false;
+        } finally { setBusy(false); }
+      }
+      /** 前进后退或刷新时清空新面板，不恢复前一次的材料与会话。 */
+      function resetRevise() { reviseForm.reset(); clearRevise(); }
+      for (const key of ["score", "revise"]) {
+        node(key + "-tab").addEventListener("click", () => activateTab(key));
+        node(key + "-tab").addEventListener("keydown", event => {
+          // 左右方向键在两个标签间切换，按 Tab 正常进入当前面板。
+          if (["ArrowLeft", "ArrowRight"].includes(event.key)) { event.preventDefault(); const next = key === "score" ? "revise" : "score"; activateTab(next); node(next + "-tab").focus(); }
+        });
+      }
+      reviseForm.addEventListener("submit", event => { event.preventDefault(); startReview(false); });
+      node("revise-confirm").addEventListener("click", () => startReview(true));
+      node("revise-apply").addEventListener("click", applyReview);
+      for (const id of ["revise-title", "revise-jd", "revise-file"]) node(id).addEventListener(id === "revise-file" ? "change" : "input", clearRevise);
+      window.addEventListener("pageshow", resetRevise); resetRevise();
+    })();
   </script>
 </body>
 </html>

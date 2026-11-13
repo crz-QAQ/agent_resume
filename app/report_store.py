@@ -15,6 +15,11 @@ _ID = re.compile(r"[0-9a-f]{32}")
 _lock = RLock()
 # 仅保存下载名，不保存原始简历；PDF过期时一起移除。
 _filenames: dict[str, str] = {}
+# 多产出使用独立命名空间；下载名只留在内存，不生成包含个人字段的侧车文件。
+ARTIFACT_KINDS = ("review", "resume")
+ARTIFACT_EXTS = {"review": "pdf", "resume": None}
+_ARTIFACT = re.compile(r"([0-9a-f]{32})__(review|resume)\.(pdf|docx)")
+_artifact_filenames: dict[str, str] = {}
 
 
 def _valid(report_id: str) -> bool:
@@ -43,7 +48,8 @@ def purge_expired() -> int:
             except FileNotFoundError:
                 # 其他进程已清理同一文件时，视作过期缓存已经消失。
                 continue
-        return removed
+        # 旧报告的命名与清理逻辑保持原样，新增产物另按严格文件名白名单清理。
+        return removed + _purge_artifacts(cutoff)
 
 
 def save_report(report_id: str, pdf: bytes, *, filename: str | None = None) -> Path:
@@ -118,3 +124,105 @@ def stats() -> dict:
         count = sum(_valid(path.stem) and path.is_file() and not path.is_symlink()
                     for path in REPORT_DIR.glob("*.pdf"))
         return {"cached_reports": count, "ttl_minutes": TTL_MINUTES}
+
+
+def _artifact_paths(artifact_id: str) -> list[Path]:
+    """只用已校验 ID 和服务端固定后缀定位产物，不接受展示名或任意路径。"""
+    # 非法值不会触发目录创建、通配搜索或任何用户控制的路径解析。
+    if not _valid(artifact_id):
+        return []
+    # ID 合法之后才构造路径；每个 ID 唯一对应一个产物。
+    return [REPORT_DIR / f"{artifact_id}__{kind}.{ext}" for kind, ext in
+            (("review", "pdf"), ("resume", "pdf"), ("resume", "docx"))]
+
+
+def _purge_artifacts(cutoff: float) -> int:
+    """清理多产出的 PDF/Word 文件与下载名，仅由已持锁的统一清理入口调用。"""
+    removed = 0
+    for path in REPORT_DIR.iterdir():
+        match = _ARTIFACT.fullmatch(path.name)
+        # 非本模块文件及符号链接不跟随、不删除，review 仅允许 PDF。
+        if not match or path.is_symlink() or not path.is_file() or match.groups()[1:] == ("review", "docx"):
+            continue
+        try:
+            if path.stat().st_mtime <= cutoff:
+                path.unlink()
+                _artifact_filenames.pop(match[1], None)
+                removed += 1
+        except FileNotFoundError:
+            # 与其它进程同时清理时，已消失文件不算本次删除。
+            continue
+    return removed
+
+
+def save_artifact(artifact_id: str, kind: str, data: bytes, *, filename: str) -> Path:
+    """独占保存最终意见或修改版，展示名只提供白名单扩展名与下载头元数据。"""
+    # 保存也先拒绝非法 ID，不能等到打开文件时才依赖操作系统阻止穿越。
+    if not _valid(artifact_id):
+        raise ValueError("非法 artifact_id")
+    if kind not in ARTIFACT_KINDS:
+        raise ValueError("不支持的产物类型")
+    # 不用 filename 拼接路径，只读取末尾扩展名并验证固定白名单。
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+    if ext not in {"pdf", "docx"} or (ARTIFACT_EXTS[kind] and ext != ARTIFACT_EXTS[kind]):
+        raise ValueError("产物仅支持 pdf/docx，意见报告必须是 pdf")
+    # 复用同一把锁，使旧报告与新产物的 TTL 清理保持原子性。
+    with _lock:
+        purge_expired()
+        # 一个 ID 不能保存多个 kind，load_artifact(id) 才始终没有歧义。
+        if any(path.exists() or path.is_symlink() for path in _artifact_paths(artifact_id)):
+            raise FileExistsError("产物 ID 已存在")
+        path = REPORT_DIR / f"{artifact_id}__{kind}.{ext}"
+        # 独占创建同时阻止覆盖、重用 ID 与跟随预放置的同名符号链接。
+        with path.open("xb") as stream:
+            try:
+                stream.write(data)
+            except BaseException:
+                stream.close()
+                path.unlink(missing_ok=True)
+                raise
+        # 文件名即使带路径分隔符也只会出现在已编码的下载头中。
+        _artifact_filenames[artifact_id] = filename
+        return path
+
+
+def load_artifact(artifact_id: str) -> tuple[bytes, str] | None:
+    """非法、不存在、过期或有歧义的产物返回 None，成功返回文件字节和下载名。"""
+    if not _valid(artifact_id):
+        return None
+    # 合法的 UUID 也必须在读前执行 TTL，不允许通过旧下载链接绕过过期。
+    with _lock:
+        purge_expired()
+        paths = [path for path in _artifact_paths(artifact_id) if path.is_file() and not path.is_symlink()]
+        # 外部误放同 ID 的多个产物时拒绝猜测，保持 ID 到文件的一对一关系。
+        if len(paths) != 1:
+            return None
+        path = paths[0]
+        try:
+            data = path.read_bytes()
+        except FileNotFoundError:
+            return None
+        # 重启后没有内存下载名时使用中性文件名，不从上传原文恢复个人身份。
+        fallback = ("修改意见报告" if "__review." in path.name else "修改后简历") + path.suffix
+        return data, _artifact_filenames.get(artifact_id, fallback)
+
+
+def artifact_kind(artifact_id: str) -> str | None:
+    """返回已校验产物的实际类型，供下载路由拒绝 ID 与 kind 不匹配的请求。"""
+    # 类型查询采用与读取相同的白名单，HTTP 路由不自行扫描任意磁盘路径。
+    if not _valid(artifact_id):
+        return None
+    with _lock:
+        purge_expired()
+        paths = [path for path in _artifact_paths(artifact_id) if path.is_file() and not path.is_symlink()]
+        return paths[0].stem.split("__", 1)[1] if len(paths) == 1 else None
+
+
+def stats_artifacts() -> dict:
+    """统计有效意见报告数及统一 TTL，不枚举产物 ID、下载名或原文。"""
+    # resume 文件不重复计为意见报告；旧评分 PDF 同样不进入这一计数。
+    with _lock:
+        purge_expired()
+        count = sum(bool(_ARTIFACT.fullmatch(path.name)) and path.is_file() and not path.is_symlink()
+                    for path in REPORT_DIR.glob("*__review.pdf"))
+        return {"cached_reviews": count, "ttl_minutes": TTL_MINUTES}

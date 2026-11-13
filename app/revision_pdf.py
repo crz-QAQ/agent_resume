@@ -152,14 +152,17 @@ def _keyword_rows(diagnosis: DiagnosisReport, styles: dict) -> list[list[object]
     return rows
 
 
-def _score_comparison(delta: ScoreDelta, styles: dict) -> list:
+def _score_comparison(delta: ScoreDelta, styles: dict, *, llm_estimated: bool = False) -> list:
     """只展示上游逐项分数、精确/预估标签与真实负差值，不重新计算评分。"""
     rows = []
     entries = [("总分 / 100", delta.before_total, delta.after_total_estimate)]
+    # 未取到原分时用明确的缺失标签，不能把降级零分写成正常预估。
+    llm_label = ('LLM / 30<font size="7">：未取到（改前总分不含 LLM 项）</font>' if llm_estimated else
+                 f'LLM / 30<font size="7">（预估 ±{delta.llm_tolerance}）</font>')
     # 分项与总分分开列，LLM 的沿用值不能混称为精确重算。
     entries.extend((label, delta.before_parts[key], delta.after_parts[key]) for key, label in
                    (("hard", "硬性 / 40（精确）"), ("semantic", "语义 / 30（精确）"),
-                    ("llm", f'LLM / 30<font size="7">（预估 ±{delta.llm_tolerance}）</font>')))
+                    ("llm", llm_label)))
     for label, before, after in entries:
         # 三个数值列在单元格内附带同一行项名，保留三列表头的清晰对比。
         rows.append([Paragraph(f"{label}<br/>{before}", styles["cell"]), after,
@@ -172,6 +175,9 @@ def _score_comparison(delta: ScoreDelta, styles: dict) -> list:
         content.append(Paragraph("本次改写后预估分下降，建议只采用部分建议", warning))
     # 逐项解释直接展示既有 notes，不在 PDF 层另造原因或省略 LLM 误差。
     content.extend(Paragraph(_field(note, limit=1000), styles["meta"]) for note in delta.notes)
+    # 仅分数对比子块附带提示，沿用小字样式，不改变上游分数或其他报告内容。
+    content.append(Paragraph("语义分对 JD 原句高度敏感：若只是把 JD 措辞搬进简历，分数会虚高，面试时无法自证",
+                             styles["footer"]))
     return content
 
 
@@ -247,7 +253,7 @@ def render_review_pdf(rep: RevisionReport, diagnosis: DiagnosisReport, *, job_ti
              empty="本次没有发现改不动的问题")], styles)
     if delta is not None or rep.adaptations or (rep.meta.get("rewrite_requested") and rep.skipped):
         # 此处只展示未来上游给出的前后对照，不执行任何改写，也不生成改后简历。
-        content = _score_comparison(delta, styles) if delta is not None else []
+        content = _score_comparison(delta, styles, llm_estimated=rep.meta.get("llm_estimated") is True) if delta is not None else []
         content.append(_table(["意见", "原文", "改后"], [[item.issue_id, item.before, item.after] for item in rep.adaptations],
                               [24, 75, 75], styles, empty="—"))
         if rep.skipped:
