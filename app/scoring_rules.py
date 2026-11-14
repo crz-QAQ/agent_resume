@@ -183,9 +183,11 @@ def score_hard(resume: ResumeInfo, job: JobInfo, resume_text: str) -> HardScore:
         members = SKILL_FAMILIES[family] if family else {_normalize_skill(names[0])}
         if any(member in resume_skills or member in lower_text for member in members):
             continue
-        # 举例仅使用输入里的原始条目，不补造 JD 未提及的厂商名称。
-        # 只有上位概念的输入也保留该原项，方便回查抽取字段。
-        label = f"{FAMILY_LABELS[family]}（举例：{'、'.join(names)}）" if family else names[0]
+        # 单成员直接保留 JD 原文，Kafka 不能被展示文案替换成上位族名。
+        label = names[0]
+        if family and len(names) >= 2:
+            # 多成员沿用族名和输入举例；分组、命中规则与数值计算均不改。
+            label = f"{FAMILY_LABELS[family]}（举例：{'、'.join(names)}）"
         missing.append(label)
     skills_score = 15
     if required:

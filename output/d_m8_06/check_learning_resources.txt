@@ -1,0 +1,24 @@
+① 材料库：通过；20 条、字段/官方白名单合法；41 个非法反例拒绝；0 分/缺口径 CLI 硬失败；重复警告、HTTP/离线标注正确
+② 别名匹配：通过；Go/Golang → go-official-doc；K8s、Postgres 别名一致
+③ 同族匹配：通过；DeepSeek/Qwen → LLM 产品；Redis 不误配
+④ 诚实空态：通过；无关技能进入 unmatched 并说明原因；Django/长句不误配；空库不凑数
+⑤ 同源缺口：通过；真实 M1/硬评分产物的三源并集完全一致；只认 covered；去重、严重度、JD 依据正确
+⑥ 三层限额：通过；12 缺口截为 8；材料共 10，每缺口 ≤2；预算截断不冒充 unmatched
+⑦ 确定排序：通过；quality 降序 → 入门优先 → verified_at 降序 → id 升序，乱序输入仍正确
+⑧ 确定性/纯函数：通过；三次 model_dump 完全相同；输入未变、输出独立；版本来源可查
+⑨ 零模型/性能/规范：通过；隔离进程禁网/禁模型通过；cost=0；最慢 0.876ms；兜底门槛/失败通过；learning_resources.py=16.1%、check_materials.py=15.1%、check_learning_resources.py=15.5%；docstring 100%
+⑩ 链接标注：通过；external=True；真实 local 文件（带 #L40）=False；空计划=False
+⑪ D-M8-02 举例匹配：通过；消息队列（举例：Kafka） → kafka-official-quickstart；多例子/别名可匹配，无关举例为空
+⑫ D-M8-02 前缀匹配：通过；必备技能：Go → go-official-doc；JD 职责/负责/连续前缀可匹配，缺口原文保留
+⑬ D-M8-02 无关长句：通过；负责数控机床维修保养 → unmatched；Django、职责长句和带额外后缀的括号不误配
+⑭ D-M8-03 单一族缺口：通过；真实 M1/S3 消息队列场景 → 仅 1 条缺口，无自指括号，Kafka 材料保留
+⑮ D-M8-03 主名去重：通过；4 → 3：Go / 消息队列 / 负责订单系统接口开发；取最高严重度和最短文案，Go/Golang 等独立保留
+⑯ D-M8-04 效果评测：通过；效果评测 → fde-evaluation；评测集/指标标签来自实际内容，缺口原文不变
+⑰ D-M8-04 需求拆解：通过；需求梳理与拆解 → fde-requirements；官方业务问题→用例→优先级→成功指标指南
+⑱ D-M8-05 语义兜底开关：通过；False=disabled/0次；True=used/1次真实向量/0元；异常=unavailable+unmatched+semantic_errors
+⑲ D-M8-06 评测关键词：通过；建立评测和反馈机制并根据真实业务结果迭代 → fde-evaluation；matched_by=keyword；模型调用0
+⑳ D-M8-06 业务关键词：通过；梳理业务流程、关键判断和专业经验并转化为AI场景方案 → fde-requirements；matched_by=keyword；命中词=['业务']；原tag未改
+㉑ D-M8-06 诚实未匹配：通过；matched_by=none；top1=0.481128；margin=0.014046；保持unmatched
+㉒ D-M8-06 真余弦对：通过；真实bge-small-zh：需求相关=0.616912≥0.45；评测vsGit=0.374381<0.45
+㉓ D-M8-06 四种匹配方式：通过；family/keyword/semantic/none四值齐全；逐gap.meta与plan.meta一致；同一模型、2次编码、0重排、0元
+通过 23/23

@@ -1,0 +1,152 @@
+{
+  "resume_file": "tools/test_files/text_resume.pdf",
+  "hard": {
+    "score": 25,
+    "breakdown": {
+      "years": 15,
+      "education": 0,
+      "skills": 10
+    },
+    "deductions": [
+      {
+        "item": "学历",
+        "type": "education_unknown",
+        "deduct": 10,
+        "jd_evidence": "本科",
+        "resume_evidence": "简历未提及",
+        "severity": "high"
+      },
+      {
+        "item": "必备技能：Go",
+        "type": "missing_skill",
+        "deduct": 5,
+        "jd_evidence": "Go",
+        "resume_evidence": "简历未提及",
+        "severity": "high"
+      }
+    ]
+  },
+  "semantic": {
+    "score": 0,
+    "status": "ok",
+    "per_item": [
+      {
+        "item": "负责订单系统接口开发与性能优化",
+        "best_sim": 0.5633354187011719,
+        "best_sentence": "2018 年入行，7 年后端开发经验",
+        "covered": false,
+        "rerank_score": -1.0159759521484375
+      },
+      {
+        "item": "负责数据库查询优化与缓存设计",
+        "best_sim": 0.4910901188850403,
+        "best_sentence": "技能：Python、FastAPI、MySQL、Redis",
+        "covered": false,
+        "rerank_score": -1.3251432180404663
+      },
+      {
+        "item": "负责服务部署与问题排查",
+        "best_sim": 0.44169360399246216,
+        "best_sentence": "2021-至今 某 SaaS 公司 高级后端",
+        "covered": false,
+        "rerank_score": -2.754891872406006
+      }
+    ]
+  },
+  "job": {
+    "title": "后端开发工程师",
+    "company": null,
+    "required_years_min": 3.0,
+    "required_years_max": null,
+    "education": "本科",
+    "must_have": [
+      "Go",
+      "MySQL",
+      "Redis"
+    ],
+    "nice_to_have": [],
+    "responsibilities": [
+      "负责订单系统接口开发与性能优化",
+      "负责数据库查询优化与缓存设计",
+      "负责服务部署与问题排查"
+    ]
+  },
+  "diagnosis": {
+    "findings": [
+      {
+        "code": "timeline_overlap",
+        "severity": "high",
+        "location": "工作经历 · 第 1 段",
+        "evidence": "2018-2021 某电商公司 后端开发\n2021-至今 某 SaaS 公司 高级后端",
+        "detail": "工作经历 · 第 1 段（2018-2021）与工作经历 · 第 2 段（2021-至今）时间重叠"
+      },
+      {
+        "code": "missing_section",
+        "severity": "high",
+        "location": "其他 · 第 1 段",
+        "evidence": "李娜",
+        "detail": "简历缺少学历信息"
+      },
+      {
+        "code": "missing_section",
+        "severity": "high",
+        "location": "其他 · 第 1 段",
+        "evidence": "李娜",
+        "detail": "简历缺少联系方式（手机或邮箱）信息"
+      },
+      {
+        "code": "open_ended",
+        "severity": "medium",
+        "location": "工作经历 · 第 2 段",
+        "evidence": "2021-至今 某 SaaS 公司 高级后端",
+        "detail": "存在开放式时间，工作年限需人工确认"
+      }
+    ],
+    "keyword_coverage": [
+      {
+        "term": "Go",
+        "count_in_resume": 0,
+        "sections": [],
+        "from_must_have": true
+      },
+      {
+        "term": "MySQL",
+        "count_in_resume": 1,
+        "sections": [
+          "技能"
+        ],
+        "from_must_have": true
+      },
+      {
+        "term": "Redis",
+        "count_in_resume": 1,
+        "sections": [
+          "技能"
+        ],
+        "from_must_have": true
+      }
+    ],
+    "missing_keywords": [
+      "Go"
+    ],
+    "completeness": {
+      "name": true,
+      "years": true,
+      "education": false,
+      "skills": true,
+      "contact": false
+    },
+    "meta": {
+      "resume_chars": 126,
+      "finding_count": 4,
+      "elapsed_ms": 1.782,
+      "cost_yuan": 0,
+      "dropped": 0,
+      "truncated": 0,
+      "truncated_findings": 0,
+      "truncated_keywords": 0
+    }
+  },
+  "llm_score": null,
+  "llm_estimated": true
+}

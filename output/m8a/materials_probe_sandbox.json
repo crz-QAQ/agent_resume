@@ -1,0 +1,115 @@
+{
+  "checked_at": "2026-11-13T06:14:43.484075+00:00",
+  "version": "1",
+  "count": 12,
+  "results": [
+    {
+      "id": "go-official-doc",
+      "locator": "https://go.dev/doc/",
+      "status_code": null,
+      "status": "unverified",
+      "redirects": [],
+      "reason": "curl exit=7；未取得成功响应",
+      "effective_url": "https://go.dev/doc/"
+    },
+    {
+      "id": "python-official-tutorial",
+      "locator": "https://docs.python.org/3/tutorial/",
+      "status_code": null,
+      "status": "unverified",
+      "redirects": [],
+      "reason": "curl exit=7；未取得成功响应",
+      "effective_url": "https://docs.python.org/3/tutorial/"
+    },
+    {
+      "id": "mysql-official-manual",
+      "locator": "https://dev.mysql.com/doc/refman/8.4/en/",
+      "status_code": null,
+      "status": "unverified",
+      "redirects": [],
+      "reason": "curl exit=7；未取得成功响应",
+      "effective_url": "https://dev.mysql.com/doc/refman/8.4/en/"
+    },
+    {
+      "id": "redis-official-doc",
+      "locator": "https://redis.io/docs/latest/",
+      "status_code": null,
+      "status": "unverified",
+      "redirects": [],
+      "reason": "curl exit=7；未取得成功响应",
+      "effective_url": "https://redis.io/docs/latest/"
+    },
+    {
+      "id": "docker-official-start",
+      "locator": "https://docs.docker.com/get-started",
+      "status_code": null,
+      "status": "unverified",
+      "redirects": [],
+      "reason": "curl exit=7；未取得成功响应",
+      "effective_url": "https://docs.docker.com/get-started"
+    },
+    {
+      "id": "fastapi-official-tutorial",
+      "locator": "https://fastapi.tiangolo.com/tutorial/",
+      "status_code": null,
+      "status": "unverified",
+      "redirects": [],
+      "reason": "curl exit=7；未取得成功响应",
+      "effective_url": "https://fastapi.tiangolo.com/tutorial/"
+    },
+    {
+      "id": "langchain-official-overview",
+      "locator": "https://docs.langchain.com/oss/python/langchain/overview",
+      "status_code": null,
+      "status": "unverified",
+      "redirects": [],
+      "reason": "curl exit=7；未取得成功响应",
+      "effective_url": "https://docs.langchain.com/oss/python/langchain/overview"
+    },
+    {
+      "id": "dify-official-doc",
+      "locator": "https://docs.dify.ai/en/home",
+      "status_code": null,
+      "status": "unverified",
+      "redirects": [],
+      "reason": "curl exit=7；未取得成功响应",
+      "effective_url": "https://docs.dify.ai/en/home"
+    },
+    {
+      "id": "git-official-reference",
+      "locator": "https://git-scm.com/docs",
+      "status_code": null,
+      "status": "unverified",
+      "redirects": [],
+      "reason": "curl exit=7；未取得成功响应",
+      "effective_url": "https://git-scm.com/docs"
+    },
+    {
+      "id": "kubernetes-official-basics",
+      "locator": "https://kubernetes.io/docs/tutorials/kubernetes-basics/index.html",
+      "status_code": null,
+      "status": "unverified",
+      "redirects": [],
+      "reason": "curl exit=7；未取得成功响应",
+      "effective_url": "https://kubernetes.io/docs/tutorials/kubernetes-basics/index.html"
+    },
+    {
+      "id": "kafka-official-quickstart",
+      "locator": "https://kafka.apache.org/quickstart/",
+      "status_code": null,
+      "status": "unverified",
+      "redirects": [],
+      "reason": "curl exit=7；未取得成功响应",
+      "effective_url": "https://kafka.apache.org/quickstart/"
+    },
+    {
+      "id": "postgresql-official-tutorial",
+      "locator": "https://www.postgresql.org/docs/current/tutorial.html",
+      "status_code": null,
+      "status": "unverified",
+      "redirects": [],
+      "reason": "curl exit=7；未取得成功响应",
+      "effective_url": "https://www.postgresql.org/docs/current/tutorial.html"
+    }
+  ]
+}

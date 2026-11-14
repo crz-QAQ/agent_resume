@@ -154,7 +154,28 @@
     .revise-delta { margin-top: 22px; }
     .delta-negative { color: #b42318; margin-top: 10px; font-size: 13px; }
     .delta-note { color: #68788a; font-size: 12px; margin-top: 10px; }
+    /* 新计划保持在修改结果区；默认展开，也可用原生 summary 键盘折叠。 */
+    .revise-plan { margin-top: 22px; border: 1px solid #dfe5eb; border-radius: 10px; overflow: hidden; }
+    .revise-plan summary { padding: 14px 16px; background: #f7f9fc; font-size: 15px; font-weight: 650; cursor: pointer; }
+    .revise-plan-content { padding: 16px; min-width: 0; }
+    .revise-plan-content p { margin-top: 8px; font-size: 13px; overflow-wrap: anywhere; }
+    /* 计划表允许窄屏横向滚动，正文不挤出页面，也不改旧评分表的样式。 */
+    .plan-table-wrap { overflow-x: auto; }
+    .plan-table { width: 100%; min-width: 500px; font-size: 12px; }
+    .plan-table th, .plan-table td { padding: 9px 8px; vertical-align: top; overflow-wrap: anywhere; }
+    .plan-blocked { color: #788695; background: #f7f9fb; }
+    .plan-ceiling { padding: 10px 12px; background: #f2f4f7; border-radius: 6px; }
+    .plan-total { font-weight: 650; color: #254b77; }
+    /* 缺口卡只展示服务器已选定材料；链接和备注均使用 DOM 文本赋值。 */
+    .learning-gap { padding: 14px; margin-top: 12px; border: 1px solid #e1e7ee; border-radius: 8px; background: #f8fafc; }
+    .learning-gap h4 { margin: 0; font-size: 14px; }
+    .learning-material { margin-top: 12px; padding-top: 10px; border-top: 1px solid #e2e8ef; }
+    .learning-material a { color: #245ca6; text-decoration: underline; overflow-wrap: anywhere; }
+    .learning-material code { font-family: Consolas, "Courier New", monospace; overflow-wrap: anywhere; }
+    .material-rating { color: #8c631e; letter-spacing: .05em; }
     #revise-downloads { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
+    #revise-resume-download[aria-disabled="true"] { background: #d8dee6; color: #657384; cursor: not-allowed; pointer-events: none; }
+    #revise-no-resume { flex-basis: 100%; margin: 0; }
     #revise-skipped { padding-left: 20px; font-size: 13px; }
   </style>
 </head>
@@ -258,6 +279,13 @@
             <p id="revise-mode" class="hint"></p><p id="revise-counts" class="hint"></p>
             <div id="revise-status" class="status" role="status" hidden></div>
             <div id="revise-cards"></div><div id="revise-delta" class="revise-delta"></div>
+            <!-- 外链只读取接口里的材料库条目，静态文件不写任何外部地址。 -->
+            <details id="revise-uplift" class="revise-plan" open hidden>
+              <summary>怎么才能涨分</summary><div id="revise-uplift-content" class="revise-plan-content"></div>
+            </details>
+            <details id="revise-learning" class="revise-plan" open hidden>
+              <summary>能力补强建议</summary><div id="revise-learning-content" class="revise-plan-content"></div>
+            </details>
             <div class="download"><a id="revise-review-download" class="button" download>下载修改意见 PDF</a></div>
             <!-- 是否可自动修改来自 M5 预演，不把缺失能力变成可采纳经历。 -->
             <button id="revise-apply" class="button" type="button" disabled>生成修改版</button>
@@ -265,6 +293,7 @@
             <div id="revise-downloads" hidden>
               <a id="revise-resume-download" class="button" download>下载修改后简历</a>
               <a id="revise-final-review" class="button" download>下载修改意见报告</a>
+              <p id="revise-no-resume" class="hint" hidden></p>
             </div>
             <ul id="revise-skipped" hidden></ul>
           </section>
@@ -536,8 +565,11 @@
         node("revise-start").disabled = state.busy || !titleOK || !fileOK;
         // 勾选数量仅控制按钮；实际可替换性仍交给后端 M5 护栏。
         const selected = node("revise-cards").querySelectorAll("input:checked:not(:disabled)").length;
-        node("revise-apply").disabled = state.busy || !state.review || selected === 0;
-        node("revise-apply-hint").textContent = state.review && selected === 0 ? "暂无选中的可自动修改条目，请按人工指引核实信息。" : "";
+        const reportOnly = state.review && !(state.review.report.meta.auto_applicable_ids || []).length;
+        node("revise-apply").disabled = state.busy || !state.review || (selected === 0 && !reportOnly);
+        if (!state.busy) node("revise-apply").textContent = reportOnly ? "生成修改意见报告" : "生成修改版";
+        node("revise-apply-hint").textContent = state.review && selected === 0 ?
+          (reportOnly ? "暂无可自动修改条目，仍可生成并下载完整意见报告。" : "暂无选中的可自动修改条目，请按人工指引核实信息。") : "";
         return titleOK && fileOK;
       }
       /** 请求期间锁定输入，防止旧材料的结果覆盖新材料。 */
@@ -554,8 +586,10 @@
       /** 材料变化后撤下旧报告、旧指纹和旧下载地址。 */
       function clearRevise() {
         state.profileHash = null; state.review = null;
-        for (const id of ["revise-result", "revise-profile", "revise-downloads", "revise-skipped", "revise-error"]) node(id).hidden = true;
+        for (const id of ["revise-result", "revise-profile", "revise-downloads", "revise-skipped", "revise-error", "revise-uplift", "revise-learning"]) node(id).hidden = true;
+        for (const id of ["revise-uplift-content", "revise-learning-content"]) node(id).replaceChildren();
         for (const id of ["revise-review-download", "revise-resume-download", "revise-final-review"]) node(id).removeAttribute("href");
+        node("revise-no-resume").hidden = true;
         node("revise-cards").replaceChildren(); node("revise-empty").hidden = false; validateRevise();
       }
       /** 将网络、JSON 与中文业务错误收口，禁止对象直接进入页面。 */
@@ -623,6 +657,9 @@
           card.append(element("p", issue.original_text, "revise-original"));
           card.append(element("p", "建议改为")); card.append(element("p", text, editable ? "revise-suggestion" : "revise-guidance"));
           for (const [title, key] of [["为什么改", "why"], ["JD 依据", "jd_evidence"], ["改完的好处", "gain"], ["风险提示", "risk_note"]]) card.append(element("p", title + "：" + readable(issue[key])));
+          // 派生影响来自服务端回填，前端只格式化，不自行估算分数。
+          if (Number.isInteger(issue.score_impact)) card.append(element("p", "预计分数影响：" +
+            (issue.score_impact > 0 ? "+" + issue.score_impact + "（需满足真实经历前提）" : "0（仅优化表达）"), "hint"));
           if (!available) card.append(element("p", readable(skipped.get(issue.id), "此项需要本人核实或补充，不自动修改。"), "revise-unavailable"));
           target.append(card);
         }
@@ -665,9 +702,76 @@
         status.className = "status " + (needs === "failed" ? "failed" : "needs-review");
         status.textContent = (needs === "failed" ? "分析未完成：" : "需要人工复核：") + detailMessage(payload.report.meta.reasons, readable(payload.report.meta.reason, "请核对原始信息与每条风险提醒。"));
         renderCards(payload.report); renderDelta(payload.delta, payload.report.meta);
+        renderUplift(payload.uplift_plan); renderLearning(payload.learning_plan, payload.report.meta);
         node("revise-review-download").href = "/revise/file/" + payload.review_id + "/review";
         node("revise-empty").hidden = true; node("revise-result").hidden = false; node("revise-profile").hidden = true;
         node("revise-heading").focus({preventScroll: true});
+      }
+      /** 展示现成涨分策略；合计只读取后端字段，不加总或把 blocked 算成可达。 */
+      function renderUplift(plan) {
+        const section = node("revise-uplift"); const target = node("revise-uplift-content"); target.replaceChildren();
+        section.hidden = !plan; section.open = true; if (!plan) return;
+        target.append(element("p", "以下分数以真实经历为前提，改简历不能替代积累能力。", "hint"));
+        if (plan.ceiling_note) target.append(element("p", plan.ceiling_note, "plan-ceiling"));
+        const wrap = element("div", "", "plan-table-wrap"); const table = element("table", "", "plan-table");
+        const head = document.createElement("thead"); const header = document.createElement("tr");
+        const titles = ["分数项", "当前", "最多可加", "该做什么", "前提"];
+        for (const title of titles) header.append(element("th", title)); head.append(header); table.append(head);
+        const body = document.createElement("tbody");
+        for (const item of plan.items || []) {
+          const row = element("tr", "", item.blocked ? "plan-blocked" : "");
+          const values = [item.item, item.current, item.potential > 0 ? "+" + item.potential : item.potential,
+            (item.blocked ? "（改简历拿不到）" : "") + readable(item.action), item.requirement];
+          for (const [index, value] of values.entries()) cell(row, titles[index], value); body.append(row);
+        }
+        table.append(body); wrap.append(table); target.append(wrap);
+        if (!(plan.items || []).length) target.append(element("p", "本次未列出可计算的涨分策略。", "hint"));
+        if ((plan.unreachable || []).length) target.append(element("p", "靠改简历拿不到的分数：" + plan.unreachable.join("、"), "hint"));
+        target.append(element("p", "合计：若上面每条前提都成立，最多可加 " + readable(plan.achievable_if_true) + " 分；这只是上限，不作为承诺", "plan-total"));
+      }
+      /** 仅把材料库返回的安全外链做成链接，本地材料保持普通等宽路径。 */
+      function materialTitle(material) {
+        if (material.kind === "external") {
+          try {
+            const url = new URL(material.locator);
+            if (url.protocol === "https:" && !url.username && !url.password && (!url.port || url.port === "443")) {
+              const link = element("a", material.title); link.href = url.href; link.target = "_blank"; link.rel = "noopener";
+              return link;
+            }
+          } catch { /* 非法地址只显示标题，不执行后端字符串。 */ }
+        }
+        return element("span", material.title);
+      }
+      /** 材料不可用是独立的显式空态；每次渲染先清空旧材料，防止显示过期推荐。 */
+      function renderLearning(plan, meta = {}) {
+        const section = node("revise-learning"); const target = node("revise-learning-content"); target.replaceChildren();
+        section.hidden = !plan && meta.learning_unavailable !== true; section.open = true;
+        if (!plan) {
+          if (meta.learning_unavailable === true) target.append(element("p", "学习材料库暂不可用，本次未附学习材料；修改意见与涨分策略仍可查看。", "hint"));
+          return;
+        }
+        target.append(element("p", "以下为 JD 要求但简历未体现的能力。请先学习和实践，只有真实具备后才补充到简历。", "hint"));
+        const severity = {high: "高", medium: "中", low: "低"};
+        for (const gap of plan.gaps || []) {
+          const card = element("article", "", "learning-gap"); card.append(element("h4", gap.gap + " · " + readable(severity[gap.severity])));
+          card.append(element("p", gap.why, "hint"));
+          for (const material of gap.materials || []) {
+            const row = element("div", "", "learning-material"); row.append(materialTitle(material));
+            const kind = material.kind === "external" ? "外部链接 · 需联网" : "本地材料";
+            const score = material.quality;
+            const rating = Number.isInteger(score) && score >= 1 && score <= 5 ? "★".repeat(score) + "☆".repeat(5 - score) + " " + score + "/5" : "评分待核实";
+            row.append(element("p", kind + " · " + readable(material.level), "hint"));
+            row.append(element("p", rating, "material-rating"));
+            row.append(element("p", "核实日期：" + readable(material.verified_at), "hint"));
+            row.append(element("p", material.note, "hint"));
+            if (material.kind === "local") row.append(element("code", material.locator));
+            card.append(row);
+          }
+          if (!(gap.materials || []).length) card.append(element("p", "暂无对应材料（材料库未收录）", "hint"));
+          target.append(card);
+        }
+        if (!(plan.gaps || []).length) target.append(element("p", "本次未列出需要补强的能力缺口。", "hint"));
+        target.append(element("p", "材料评分来自本地人工标注；外部链接需联网打开。", "hint"));
       }
       /** 请求分析；未提供 JD 时，普通提交只展示草案，不自动确认。 */
       async function startReview(confirmed = false) {
@@ -689,19 +793,43 @@
           node("revise-error").textContent = readable(error && error.message, "分析失败，请稍后重试。"); node("revise-error").hidden = false;
         } finally { setBusy(false); }
       }
-      /** 只提交编号，真实应用由服务器检查并返回两份独立产物。 */
+      /** 零改写仍展示报告；撤下旧简历链接并以可访问的禁用态说明原因。 */
+      function renderApplyDownloads(payload) {
+        const hasResume = payload.resume_url !== null;
+        // URL 只允许同源固定路由；null 是合法的零改写响应。
+        if (!/^\/revise\/file\/[0-9a-f]{32}\/review$/.test(payload.review_pdf_url) ||
+            (hasResume && !/^\/revise\/file\/[0-9a-f]{32}\/resume$/.test(payload.resume_url))) throw new Error("下载地址不完整，请重新生成。");
+        const resume = node("revise-resume-download");
+        resume.removeAttribute("href"); resume.setAttribute("aria-disabled", String(!hasResume)); resume.tabIndex = hasResume ? 0 : -1;
+        resume.textContent = hasResume ? "下载修改后简历（." + readable(payload.resume_ext) + "）" : "下载修改后简历";
+        if (hasResume) resume.href = payload.resume_url;
+        node("revise-final-review").href = payload.review_pdf_url;
+        const note = node("revise-no-resume"); note.hidden = hasResume;
+        if (!hasResume) {
+          const issues = new Map(state.review.report.issues.map(issue => [issue.id, issue]));
+          let missing = 0, incomplete = 0, crossParagraph = 0, manual = 0;
+          for (const item of payload.skipped || []) {
+            const issue = issues.get(item.issue_id);
+            if (readable(item.reason, "").startsWith("跨段落，需手动改")) crossParagraph++;
+            else if ((issue && issue.category === "missing") || item.reason === "需本人补充经历，系统不代写") missing++;
+            else if (item.reason === "需本人按真实月份/学历补全" || (issue && issue.category === "inconsistent")) incomplete++;
+            else manual++;
+          }
+          note.textContent = "本次没有可自动改写的条目：" + missing + " 条属于你缺的能力（需自己补）、" +
+            incomplete + " 条需你补全真实信息、" + crossParagraph + " 条跨段落需手动改" +
+            (manual ? "；另有 " + manual + " 条需手动修改" : "");
+        }
+        node("revise-downloads").hidden = false;
+      }
+      /** 只提交编号；全部不可改时请求报告，显式取消选择仍不提交。 */
       async function applyReview() {
         if (state.busy || !state.review) return;
         const selected = Array.from(node("revise-cards").querySelectorAll("input:checked:not(:disabled)"), input => input.value);
-        if (!selected.length) return;
+        if (!selected.length && (state.review.report.meta.auto_applicable_ids || []).length) return;
         node("revise-error").hidden = true; node("revise-downloads").hidden = true; setBusy(true, true);
         try {
-          const payload = await requestJSON("/revise/apply", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({review_id: state.review.review_id, selected_ids: selected})});
-          // 两个下载 URL 都限定在同源固定路由，绝不执行模型文本里的链接。
-          if (!/^\/revise\/file\/[0-9a-f]{32}\/review$/.test(payload.review_pdf_url) || !/^\/revise\/file\/[0-9a-f]{32}\/resume$/.test(payload.resume_url)) throw new Error("下载地址不完整，请重新生成。");
-          node("revise-resume-download").href = payload.resume_url; node("revise-final-review").href = payload.review_pdf_url;
-          node("revise-resume-download").textContent = "下载修改后简历（." + readable(payload.resume_ext) + "）";
-          node("revise-downloads").hidden = false; node("revise-skipped").replaceChildren();
+          const payload = await requestJSON("/revise/apply", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({review_id: state.review.review_id, selected_ids: selected.length ? selected : null})});
+          renderApplyDownloads(payload); node("revise-skipped").replaceChildren();
           for (const item of payload.skipped || []) node("revise-skipped").append(element("li", readable(item.issue_id) + "：" + readable(item.reason)));
           node("revise-skipped").hidden = !node("revise-skipped").childElementCount; renderDelta(payload.delta, state.review.report.meta);
         } catch (error) {

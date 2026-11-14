@@ -1,0 +1,25 @@
+{
+  "review_status": 200,
+  "apply_status": 200,
+  "resume_bytes": 276107,
+  "jd_chars": 1081,
+  "issues": 6,
+  "categories": {
+    "missing": 5,
+    "inconsistent": 1
+  },
+  "applied": 0,
+  "skipped": 6,
+  "skip_reasons": {
+    "需本人补充经历，系统不代写": 5,
+    "跨段落，需手动改（原句在文档里被拆成了多段）": 1
+  },
+  "review_pdf_download": 200,
+  "review_pdf_bytes": 229064,
+  "pdf_pages": 7,
+  "chapter_8_9_present": true,
+  "resume_url_is_null": true,
+  "cost_yuan": 0.0089432,
+  "model_responses": 5,
+  "elapsed_seconds": 24.945
+}

@@ -1,0 +1,60 @@
+{
+  "renderer": "pypdfium2（本地无 Poppler，使用已安装的 PDFium 渲染器）",
+  "real_pdf": {
+    "pages": 5,
+    "bytes": 180115,
+    "sha256": "b727efadb4d9dffcc95ff686ec5417c1829111e986b6a1f24168b4b6d9f30425",
+    "page_checks": [
+      {
+        "page": 1,
+        "has_learning": false,
+        "has_uplift": false,
+        "footer": true,
+        "links": []
+      },
+      {
+        "page": 2,
+        "has_learning": false,
+        "has_uplift": false,
+        "footer": true,
+        "links": []
+      },
+      {
+        "page": 3,
+        "has_learning": false,
+        "has_uplift": false,
+        "footer": true,
+        "links": []
+      },
+      {
+        "page": 4,
+        "has_learning": true,
+        "has_uplift": false,
+        "footer": true,
+        "links": [
+          "https://go.dev/doc/"
+        ]
+      },
+      {
+        "page": 5,
+        "has_learning": false,
+        "has_uplift": true,
+        "footer": true,
+        "links": []
+      }
+    ]
+  },
+  "rendered_and_visually_reviewed_pages": 23,
+  "reviewed_samples": [
+    "real:1-5",
+    "J1-both:1-3",
+    "J3-zero:1-3",
+    "J4-ceiling:1-2",
+    "J5-impact:1-3",
+    "L1-eight:1-3",
+    "L3-local:1-2",
+    "L4-external:1-2"
+  ],
+  "review": "实际页图已检查；无文字裁切、重叠、黑块或页脚覆盖。窄列小数拆行已修正并回归。",
+  "images": "tmp/pdfs/m8b_m9b/"
+}

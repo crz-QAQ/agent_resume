@@ -29,6 +29,8 @@ class ReviewIssue(BaseModel):
     jd_evidence: str = Field(description="JD 原文依据；inferred 模式写岗位画像及其要求")
     # 数字、规模与成果只能使用真实信息。
     risk_note: str = Field(description="诚实提醒，数字、规模与成果必须真实")
+    # PRD v2.0 §3.5：代码回填的派生值；旧调用缺省为零，模型不得自报。
+    score_impact: int = 0
 
 
 class JobProfile(BaseModel):
@@ -143,3 +145,28 @@ class ScoreDelta(BaseModel):
     covered_after: int                 # 语义覆盖条数（改后）
     notes: list[str]                   # 人话解释：哪项为什么变，变了多少
     llm_tolerance: int = 2             # LLM 项预估误差 ±2
+
+
+class UpliftItem(BaseModel):
+    """内部结构：记录一项按公式计算、附真实前提的分数潜力。"""
+
+    # PRD v2.0 §6.2.4：字段、类型与顺序保持一致，不用于模型结构化输出。
+    part: str            # hard / semantic / llm
+    item: str            # 必备技能或 JD 职责原名
+    current: str         # 当前命中、覆盖或分数描述
+    potential: int       # §6.2.5 单项公式结果，不代表保证涨分
+    action: str          # 可执行的真实补充动作
+    requirement: str     # 必须成立的真实经历前提
+    blocked: bool        # 靠本次改稿无法获得，不参与可达合计
+
+
+class UpliftPlan(BaseModel):
+    """内部结构：汇总条件成立时的潜力、不可达分项与评分解释。"""
+
+    # 合计只覆盖最终展示的非 blocked 项，保证每一分都可回查。
+    items: list[UpliftItem]       # potential 降序，最多十条
+    achievable_if_true: int       # 前提全部为真时的非 blocked 合计
+    unreachable: list[str]        # 年限、学历、未做过的经历等限制
+    ceiling_note: str             # 全职责覆盖时的语义上限说明
+    notes: list[str]              # 包含 §3.4 原文解释
+    meta: dict                   # 零成本、公式参数与截断审计

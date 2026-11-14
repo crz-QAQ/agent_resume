@@ -1,0 +1,433 @@
+{
+  "source_resume": "tools/test_files/text_resume.pdf",
+  "source_scores": "output\\m9a\\M9a_UpliftPlan_输入依据.json",
+  "source_reviews": "docs\\实施记录\\简历修改\\M3_真实意见.json",
+  "source_review_index": 1,
+  "omitted_unanchored_issue_ids": [
+    "R-003"
+  ],
+  "historical_review_meta": {
+    "model": "fallback（厂商未透传）",
+    "prompt_version": "revision_v1.1",
+    "cost_yuan": 0.0025446,
+    "jd_source": "user_jd",
+    "candidate_count": 5,
+    "accepted_count": 5,
+    "rejected_count": 0,
+    "resume_chars": 126,
+    "resume_truncated": false,
+    "json_retries": 0,
+    "status": "ok",
+    "reason": "",
+    "model_accepted_count": 5,
+    "injected_count": 0,
+    "injection_skipped": [],
+    "elapsed_ms": 3115.404,
+    "cost_over_budget": false
+  },
+  "report": {
+    "issues": [
+      {
+        "id": "R-001",
+        "category": "missing",
+        "severity": "high",
+        "location": "其他 · 第 1 段",
+        "original_text": "李娜",
+        "suggested_text": "",
+        "why": "JD 要求本科；原句只有姓名，简历未写学历，无法核对是否满足",
+        "gain": "从无学历信息到明确学历是否达标",
+        "jd_evidence": "本科",
+        "risk_note": "如确有相关经历请补充，否则不建议写",
+        "score_impact": 0
+      },
+      {
+        "id": "R-002",
+        "category": "missing",
+        "severity": "high",
+        "location": "技能 · 第 1 段",
+        "original_text": "Python、FastAPI、MySQL、Redis",
+        "suggested_text": "",
+        "why": "JD 必备技能含 Go；原句技能列表无 Go，属必备技能缺口",
+        "gain": "从技能列表缺 Go 到核实后决定是否补入",
+        "jd_evidence": "Go",
+        "risk_note": "如确有相关经历请补充，否则不建议写",
+        "score_impact": 5
+      },
+      {
+        "id": "R-004",
+        "category": "missing",
+        "severity": "medium",
+        "location": "工作经历 · 第 1 段",
+        "original_text": "2018-2021 某电商公司 后端开发",
+        "suggested_text": "",
+        "why": "JD 要求负责订单系统接口开发与性能优化；原句只写岗位名，无订单接口经历",
+        "gain": "从只列岗位到核实后补充订单接口职责",
+        "jd_evidence": "负责订单系统接口开发与性能优化",
+        "risk_note": "如确有相关经历请补充，否则不建议写",
+        "score_impact": 8
+      },
+      {
+        "id": "R-005",
+        "category": "missing",
+        "severity": "medium",
+        "location": "工作经历 · 第 2 段",
+        "original_text": "2021-至今 某 SaaS 公司 高级后端",
+        "suggested_text": "",
+        "why": "JD 要求负责数据库查询优化与缓存设计；原句只写岗位名，无查询优化与缓存设计内容",
+        "gain": "从只列岗位到核实后补充查询优化与缓存设计职责",
+        "jd_evidence": "负责数据库查询优化与缓存设计",
+        "risk_note": "如确有相关经历请补充，否则不建议写",
+        "score_impact": 8
+      }
+    ],
+    "rejected_issues": [],
+    "profile": {
+      "title": "后端开发工程师",
+      "source": "user_jd",
+      "confirmed": true,
+      "must_have": [
+        "Go",
+        "MySQL",
+        "Redis"
+      ],
+      "responsibilities": [
+        "负责订单系统接口开发与性能优化",
+        "负责数据库查询优化与缓存设计",
+        "负责服务部署与问题排查"
+      ],
+      "note": "基于用户提供的真实 JD"
+    },
+    "score_before": 25,
+    "score_after_estimate": 25,
+    "adaptations": [],
+    "skipped": [],
+    "meta": {
+      "model": "offline-cached-M3",
+      "prompt_version": "revision_v1.1",
+      "cost_yuan": 0,
+      "jd_source": "user_jd",
+      "candidate_count": 5,
+      "accepted_count": 5,
+      "rejected_count": 0,
+      "resume_chars": 126,
+      "resume_truncated": false,
+      "json_retries": 0,
+      "status": "ok",
+      "reason": "",
+      "model_accepted_count": 5,
+      "injected_count": 0,
+      "injection_skipped": [],
+      "elapsed_ms": 52.806,
+      "cost_over_budget": false,
+      "elapsed_scope": "读取历史输入与纯规则计划，不含 PDF 排版",
+      "llm_estimated": true,
+      "generated_at": "2026-11-13T07:57:40.818904+00:00"
+    }
+  },
+  "diagnosis": {
+    "findings": [
+      {
+        "code": "timeline_overlap",
+        "severity": "high",
+        "location": "工作经历 · 第 1 段",
+        "evidence": "2018-2021 某电商公司 后端开发\n2021-至今 某 SaaS 公司 高级后端",
+        "detail": "工作经历 · 第 1 段（2018-2021）与工作经历 · 第 2 段（2021-至今）时间重叠"
+      },
+      {
+        "code": "missing_section",
+        "severity": "high",
+        "location": "其他 · 第 1 段",
+        "evidence": "李娜",
+        "detail": "简历缺少学历信息"
+      },
+      {
+        "code": "missing_section",
+        "severity": "high",
+        "location": "其他 · 第 1 段",
+        "evidence": "李娜",
+        "detail": "简历缺少联系方式（手机或邮箱）信息"
+      },
+      {
+        "code": "open_ended",
+        "severity": "medium",
+        "location": "工作经历 · 第 2 段",
+        "evidence": "2021-至今 某 SaaS 公司 高级后端",
+        "detail": "存在开放式时间，工作年限需人工确认"
+      }
+    ],
+    "keyword_coverage": [
+      {
+        "term": "Go",
+        "count_in_resume": 0,
+        "sections": [],
+        "from_must_have": true
+      },
+      {
+        "term": "MySQL",
+        "count_in_resume": 1,
+        "sections": [
+          "技能"
+        ],
+        "from_must_have": true
+      },
+      {
+        "term": "Redis",
+        "count_in_resume": 1,
+        "sections": [
+          "技能"
+        ],
+        "from_must_have": true
+      }
+    ],
+    "missing_keywords": [
+      "Go"
+    ],
+    "completeness": {
+      "name": true,
+      "years": true,
+      "education": false,
+      "skills": true,
+      "contact": false
+    },
+    "meta": {
+      "resume_chars": 126,
+      "finding_count": 4,
+      "elapsed_ms": 1.782,
+      "cost_yuan": 0,
+      "dropped": 0,
+      "truncated": 0,
+      "truncated_findings": 0,
+      "truncated_keywords": 0
+    }
+  },
+  "hard": {
+    "score": 25,
+    "breakdown": {
+      "years": 15,
+      "education": 0,
+      "skills": 10
+    },
+    "deductions": [
+      {
+        "item": "学历",
+        "type": "education_unknown",
+        "deduct": 10,
+        "jd_evidence": "本科",
+        "resume_evidence": "简历未提及",
+        "severity": "high"
+      },
+      {
+        "item": "必备技能：Go",
+        "type": "missing_skill",
+        "deduct": 5,
+        "jd_evidence": "Go",
+        "resume_evidence": "简历未提及",
+        "severity": "high"
+      }
+    ]
+  },
+  "semantic": {
+    "score": 0,
+    "status": "ok",
+    "per_item": [
+      {
+        "item": "负责订单系统接口开发与性能优化",
+        "best_sim": 0.5633354187011719,
+        "best_sentence": "2018 年入行，7 年后端开发经验",
+        "covered": false,
+        "rerank_score": -1.0159759521484375
+      },
+      {
+        "item": "负责数据库查询优化与缓存设计",
+        "best_sim": 0.4910901188850403,
+        "best_sentence": "技能：Python、FastAPI、MySQL、Redis",
+        "covered": false,
+        "rerank_score": -1.3251432180404663
+      },
+      {
+        "item": "负责服务部署与问题排查",
+        "best_sim": 0.44169360399246216,
+        "best_sentence": "2021-至今 某 SaaS 公司 高级后端",
+        "covered": false,
+        "rerank_score": -2.754891872406006
+      }
+    ]
+  },
+  "delta": {
+    "before_total": 25,
+    "after_total_estimate": 25,
+    "before_parts": {
+      "hard": 25,
+      "semantic": 0,
+      "llm": 0
+    },
+    "after_parts": {
+      "hard": 25,
+      "semantic": 0,
+      "llm": 0
+    },
+    "delta_parts": {
+      "hard": 0,
+      "semantic": 0,
+      "llm": 0
+    },
+    "estimated_fields": [
+      "llm"
+    ],
+    "covered_before": 0,
+    "covered_after": 0,
+    "notes": [
+      "本次仅复用既有意见与评分，未采用新的改写；LLM 复核分未取到，改前总分不含 LLM 项"
+    ],
+    "llm_tolerance": 2
+  },
+  "learning_plan": {
+    "gaps": [
+      {
+        "gap": "Go",
+        "why": "岗位「后端开发工程师」的 JD 要求：Go",
+        "severity": "high",
+        "materials": [
+          {
+            "id": "go-official-doc",
+            "title": "Documentation - The Go Programming Language",
+            "kind": "external",
+            "locator": "https://go.dev/doc/",
+            "tags": [
+              "Go",
+              "Golang"
+            ],
+            "level": "入门",
+            "quality": 5,
+            "verified_at": "2026-11-13",
+            "note": "Go 官方文档，含入门教程、语言说明与标准库入口"
+          }
+        ]
+      },
+      {
+        "gap": "负责订单系统接口开发与性能优化",
+        "why": "岗位「后端开发工程师」的 JD 要求：负责订单系统接口开发与性能优化",
+        "severity": "medium",
+        "materials": []
+      },
+      {
+        "gap": "负责数据库查询优化与缓存设计",
+        "why": "岗位「后端开发工程师」的 JD 要求：负责数据库查询优化与缓存设计",
+        "severity": "medium",
+        "materials": []
+      },
+      {
+        "gap": "负责服务部署与问题排查",
+        "why": "岗位「后端开发工程师」的 JD 要求：负责服务部署与问题排查",
+        "severity": "medium",
+        "materials": []
+      }
+    ],
+    "unmatched": [
+      "负责订单系统接口开发与性能优化",
+      "负责数据库查询优化与缓存设计",
+      "负责服务部署与问题排查"
+    ],
+    "meta": {
+      "materials_version": "1",
+      "elapsed_ms": null,
+      "cost_yuan": 0,
+      "model_calls": 0,
+      "local_model_calls": {
+        "embedding": 0,
+        "reranker": 0
+      },
+      "has_external": true,
+      "semantic_fallback": "disabled",
+      "semantic_attempts": 0,
+      "semantic_errors": {},
+      "unmatched_reasons": {
+        "负责订单系统接口开发与性能优化": "材料库暂无对应条目",
+        "负责数据库查询优化与缓存设计": "材料库暂无对应条目",
+        "负责服务部署与问题排查": "材料库暂无对应条目"
+      },
+      "gap_count_before_limit": 4,
+      "truncated_gaps": 0,
+      "materials_total": 1,
+      "omitted_by_material_limit": 0
+    }
+  },
+  "uplift_plan": {
+    "items": [
+      {
+        "part": "semantic",
+        "item": "JD 职责：负责订单系统接口开发与性能优化",
+        "current": "未覆盖（cos=0.56）",
+        "potential": 8,
+        "action": "用你真实做过的一条经历回应「负责订单系统接口开发与性能优化」：写清场景、你负责的部分、结果数字",
+        "requirement": "你真的做过这件事；这一条是新写，不是改写旧句",
+        "blocked": false
+      },
+      {
+        "part": "semantic",
+        "item": "JD 职责：负责数据库查询优化与缓存设计",
+        "current": "未覆盖（cos=0.49）",
+        "potential": 8,
+        "action": "用你真实做过的一条经历回应「负责数据库查询优化与缓存设计」：写清场景、你负责的部分、结果数字",
+        "requirement": "你真的做过这件事；这一条是新写，不是改写旧句",
+        "blocked": false
+      },
+      {
+        "part": "semantic",
+        "item": "JD 职责：负责服务部署与问题排查",
+        "current": "未覆盖（cos=0.44）",
+        "potential": 8,
+        "action": "用你真实做过的一条经历回应「负责服务部署与问题排查」：写清场景、你负责的部分、结果数字",
+        "requirement": "你真的做过这件事；这一条是新写，不是改写旧句",
+        "blocked": false
+      },
+      {
+        "part": "hard",
+        "item": "必备技能：Go",
+        "current": "未命中（技能项总权重 15 分）",
+        "potential": 5,
+        "action": "在技能栏补 Go，并在相关经历里写出你真实的使用场景与产出",
+        "requirement": "你真的用过 Go；写过但做不到，面试必露",
+        "blocked": false
+      },
+      {
+        "part": "hard",
+        "item": "学历",
+        "current": "简历未提及（当前扣 10 分）",
+        "potential": 0,
+        "action": "改简历拿不到这分：年限靠时间积累，学历靠学历；建议换匹配的岗位",
+        "requirement": "年限或学历必须真实满足 JD 要求，不能靠措辞改变",
+        "blocked": true
+      }
+    ],
+    "achievable_if_true": 29,
+    "unreachable": [
+      "没做过的经历：不能通过改稿写成已有经历；如确有相关经历请补充，否则不建议写",
+      "学历：简历未提及；改简历拿不到这分"
+    ],
+    "ceiling_note": "",
+    "notes": [
+      "用户实测：同一份简历，走完智能修改后总分不变。这不是缺陷，是三层评分的结构决定的：",
+      "① 硬性：真的具备 JD 的必备技能 → 在技能栏与相关经历中写出真实使用场景（每命中一条 +15/N）",
+      "② 语义：把 JD 要求、但简历里完全没有的职责，用你真实做过的事补成一条（覆盖 0 → 1，+30/n×余弦）",
+      "③ LLM：补项目细节（规模/角色/结果）→ 本版不重跑，只能说「下次评分会体现」",
+      "靠改简历永远拿不到的分数：年限不足、学历不达标、以及「没做过却要写的经历」。",
+      "LLM 不可用（llm_estimated=True），未列 LLM 潜力项；本次不重算。",
+      "规则诊断 4 条、ATS 缺词 1 项，仅作补充指引，不另计涨分；覆盖不变时，改措辞的余弦波动为 ±1。",
+      "以上为最多潜力，必须满足每条真实前提；逐项取整，实际变化以重新评分为准。"
+    ],
+    "meta": {
+      "cost_yuan": 0.0,
+      "model_calls": 0,
+      "typical_cos": 0.8,
+      "skill_group_count": 3,
+      "responsibility_count": 3,
+      "llm_estimated": true,
+      "candidate_count": 5,
+      "truncated_count": 0
+    }
+  },
+  "model_calls": 0,
+  "network_calls": 0,
+  "cost_yuan": 0
+}

@@ -1,0 +1,11 @@
+① 材料库：通过；12 条、字段/官方白名单合法；34 个非法反例拒绝；重复警告、HTTP/离线标注正确
+② 别名匹配：通过；Go/Golang → go-official-doc；K8s、Postgres 别名一致
+③ 同族匹配：通过；DeepSeek/Qwen → LLM 产品；Redis 不误配
+④ 诚实空态：通过；无关技能进入 unmatched 并说明原因；Django/长句不误配；空库不凑数
+⑤ 同源缺口：通过；真实 M1/硬评分产物的三源并集完全一致；只认 covered；去重、严重度、JD 依据正确
+⑥ 三层限额：通过；12 缺口截为 8；材料共 10，每缺口 ≤2；预算截断不冒充 unmatched
+⑦ 确定排序：通过；quality 降序 → 入门优先 → verified_at 降序 → id 升序，乱序输入仍正确
+⑧ 确定性/纯函数：通过；三次 model_dump 完全相同；输入未变、输出独立；版本来源可查
+⑨ 零模型/性能/规范：通过；隔离进程禁网/禁模型通过；cost=0；最慢 0.611ms；兜底门槛/失败通过；learning_resources.py=15.8%、check_materials.py=16.1%、check_learning_resources.py=15.6%；docstring 100%
+⑩ 链接标注：通过；external=True；真实 local 文件（带 #L40）=False；空计划=False
+通过 10/10

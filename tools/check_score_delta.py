@@ -270,7 +270,7 @@ def _pdf_text(data: bytes) -> str:
 
 
 def _check_i() -> str:
-    """读回正负分 PDF、三列与红字，并在新进程完整运行 M4 回归。"""
+    """读回正负分 PDF、四列与红字，并在新进程完整运行 M4 回归。"""
     # 意见和诊断复用 M4 的既有真实数据结构，只额外传入 ScoreDelta。
     report, diagnosis, hard = pdf_inputs()
     report.adaptations = [_adapt(COOKING, ITEMS[0])]
@@ -293,7 +293,7 @@ def _check_i() -> str:
         compact = "".join(text.split())
         _expect(all(word in text for word in ("智能修改", "分数对比", "改前", "改后预估", "变化", "预估 ±2")), "PDF 缺比较表/LLM 标签")
         _expect(text.index("分数对比") < text.index("意见 原文 改后"), "分数对比位于 before/after 表之后")
-        # 检查真实页面中三个表头的同行坐标，横线表格无需添加视觉竖线。
+        # 检查真实页面中四个表头的同行坐标，横线表格无需添加视觉竖线。
         with pdfplumber.open(BytesIO(data)) as document:
             header_rows = []
             for page in document.pages:
@@ -301,7 +301,7 @@ def _check_i() -> str:
                 for word in words:
                     if word["text"] == "改前":
                         header_rows.append([row["text"] for row in words if abs(row["top"] - word["top"]) < 1])
-            _expect(["改前", "改后预估", "变化"] in header_rows, "实际 PDF 表头不是三列")
+            _expect(["项目", "改前", "改后预估", "变化"] in header_rows, "实际 PDF 表头不是四列")
             # PDF 的 RGB 会按小数位编码，比较实际字符颜色时允许编码舍入误差。
             warning_chars = [char for page in document.pages for char in page.chars
                              if isinstance(color := char.get("non_stroking_color"), (tuple, list))
@@ -333,7 +333,7 @@ def _check_i() -> str:
     # 末行汇总只用于日志展示；即使汇总格式改变也不能推翻成功的退出码。
     summary = next((line.split("；", 1)[0] for line in reversed(regression.stdout.splitlines())
                     if line.startswith("通过 ")), "未提供通过数")
-    return f"三列/三项明细/LLM ±2/负数红字读回通过；delta=None 保持原行为；M4 {summary}"
+    return f"四列/三项明细/LLM ±2/负数红字读回通过；delta=None 保持原行为；M4 {summary}"
 
 
 def main() -> int:

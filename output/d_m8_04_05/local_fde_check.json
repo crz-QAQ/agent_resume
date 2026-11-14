@@ -1,0 +1,74 @@
+{
+  "gaps": [
+    {
+      "gap": "RAG",
+      "materials": [
+        "fde-rag"
+      ]
+    },
+    {
+      "gap": "效果评测",
+      "materials": [
+        "fde-evaluation"
+      ]
+    },
+    {
+      "gap": "需求梳理与拆解",
+      "materials": [
+        "fde-requirements"
+      ]
+    },
+    {
+      "gap": "Prompt 工程",
+      "materials": [
+        "fde-prompt-engineering"
+      ]
+    },
+    {
+      "gap": "Agent",
+      "materials": [
+        "fde-agent-workflows"
+      ]
+    },
+    {
+      "gap": "知识库",
+      "materials": [
+        "fde-knowledge-base"
+      ]
+    },
+    {
+      "gap": "交付",
+      "materials": [
+        "fde-delivery-acceptance"
+      ]
+    },
+    {
+      "gap": "负责知识库搭建与效果评测",
+      "materials": [
+        "fde-evaluation"
+      ]
+    }
+  ],
+  "unmatched": [],
+  "meta": {
+    "materials_version": "1",
+    "elapsed_ms": null,
+    "cost_yuan": 0,
+    "model_calls": 1,
+    "local_model_calls": {
+      "embedding": 0,
+      "reranker": 1
+    },
+    "has_external": true,
+    "semantic_fallback": "used",
+    "semantic_attempts": 1,
+    "semantic_errors": {},
+    "unmatched_reasons": {},
+    "gap_count_before_limit": 8,
+    "truncated_gaps": 0,
+    "materials_total": 8,
+    "omitted_by_material_limit": 0
+  },
+  "network_calls": 0,
+  "generative_model_calls": 0
+}

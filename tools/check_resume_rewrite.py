@@ -215,6 +215,57 @@ def _check_b() -> str:
     return "跨 3 run 清空后两项；字体/粗斜体/颜色/下划线保留；normalize、同段冲突、禁止子串/串改/页眉均通过"
 
 
+def _check_k() -> str:
+    """K：跨段落整段匹配、行数不等、冲突和复杂内容均守恒且不部分写入。"""
+    document = Document()
+    for text in ("保留前文", "整理内部操作手册", "维护内部交接清单", "保留后文"):
+        document.add_paragraph(text)
+    document.add_table(rows=1, cols=1).cell(0, 0).text = "保留表格"
+    document.add_section()
+    raw = _raw(document)
+    baseline = Document(BytesIO(raw))
+    # 基线也从保存后的字节重开，排除 python-docx 保存时默认属性补全的差异。
+    before = "整理内部操作手册\r\n\r\n维护内部交接清单"
+    # 三个期望都写死，避免复用生产拆行算法掩盖行数分配错误。
+    variants = [("完成内部操作手册整理\n完成内部交接清单维护", ["完成内部操作手册整理", "完成内部交接清单维护"]),
+                ("完成内部文档整理", ["完成内部文档整理", ""]),
+                ("完成内部手册整理\r\n完成交接清单维护\r\n保留真实细节", ["完成内部手册整理", "完成交接清单维护\n保留真实细节"])]
+    for after, lines in variants:
+        # 每种行数都从同一原件出发，不能串用上一次修改后的文档。
+        result = rewrite.rewrite_docx(raw, [_adapt(before, after)])
+        modified = Document(BytesIO(result.data))
+        # 读回最终文件核对三种行数，未命中段落连 XML 也不允许改变。
+        expected = [paragraph.text for paragraph in baseline.paragraphs]
+        expected[1:3] = lines
+        # applied 按意见计数，多段不能冒充多条成功意见。
+        _expect(len(result.applied) == 1 and not result.skipped, "跨段落未整体采用一次")
+        _expect([paragraph.text for paragraph in modified.paragraphs] == expected, "多段文字分配错误")
+        _expect(_counts(baseline) == _counts(modified) and _page_setup(baseline) == _page_setup(modified), "多段结构或页设置变化")
+        for index, (left, right) in enumerate(zip(baseline.paragraphs, modified.paragraphs)):
+            if index not in (1, 2):
+                _expect(left._p.xml == right._p.xml, "未选段落 XML 变化")
+        _expect(baseline.tables[0]._tbl.xml == modified.tables[0]._tbl.xml, "未选表格变化")
+    # 不连续的两段不得靠串接文本命中；LF/CRLF 都应给出明确人工原因。
+    for separator in ("\n", "\r\n"):
+        missing = rewrite.rewrite_docx(raw, [_adapt(separator.join(["保留前文", "维护内部交接清单"]), "改写")])
+        _expect(not missing.applied and missing.data == raw and missing.skipped[0]["reason"] == rewrite.CROSS_PARAGRAPH, "非连续多段被替换或原因错误")
+    conflict = rewrite.rewrite_docx(raw, [_adapt("维护内部交接清单", "完成交接清单维护"), _adapt(before, variants[0][0], "R-002")])
+    # 已修改块中的任意一段都占用整条多段意见，前段须维持原文。
+    _expect(len(conflict.applied) == 1 and conflict.skipped[0]["reason"] == rewrite.ALREADY_CHANGED, "跨段落冲突未整条拒绝")
+    _expect(Document(BytesIO(conflict.data)).paragraphs[1].text == baseline.paragraphs[1].text, "冲突导致部分写入")
+    # 后段含域时，前段也不能先写入；直接多行单段的旧匹配仍优先。
+    document.paragraphs[2].runs[0]._r.append(OxmlElement("w:fldChar"))
+    complex_raw = _raw(document)
+    refused = rewrite.rewrite_docx(complex_raw, [_adapt(before, variants[0][0])])
+    _expect(not refused.applied and refused.data == complex_raw and refused.skipped[0]["reason"], "复杂多段发生部分替换")
+    single = Document()
+    single.add_paragraph("整理内部操作手册\n维护内部交接清单")
+    # 原句包含空行也应保留既有单段规范化匹配路径。
+    direct = rewrite.rewrite_docx(_raw(single), [_adapt(before, variants[0][0])])
+    _expect(len(direct.applied) == 1 and len(Document(BytesIO(direct.data)).paragraphs) == 1, "旧单段软换行匹配回归")
+    return "LF/CRLF、等行/少行/多行、非连续拒绝、冲突/复杂内容原子跳过；结构/其余段落及表格不变"
+
+
 def _check_c() -> str:
     """C：合并单元格及三层嵌套可改，第四层不扫，表格属性与结构不变。"""
     document = Document()
@@ -610,7 +661,8 @@ def main() -> int:
               ("H 零模型与规范", _check_h), ("I D-M3-06", _check_i),
               ("J1 JD 高重合", _check_j1), ("J2 JD 正常改写", _check_j2), ("J3 JD 短句豁免", _check_j3),
               ("J4 JD 原句", _check_j4), ("J5 JD 原句加字", _check_j5), ("J6 JD 插入的字", _check_j6),
-              ("J7 JD 短技术词", _check_j7), ("J8 JD 独立改写", _check_j8))
+              ("J7 JD 短技术词", _check_j7), ("J8 JD 独立改写", _check_j8),
+              ("K 跨段落容错", _check_k))
     passed = 0
     # 未使用的合成场景也不能联网；任何实际网络动作立即使所在组失败。
     with ExitStack() as stack:

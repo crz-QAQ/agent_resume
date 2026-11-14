@@ -1,0 +1,533 @@
+{
+  "review_id": "1edabbf54ac44b6a8c40850def410f5a",
+  "report": {
+    "issues": [
+      {
+        "id": "R-001",
+        "category": "missing",
+        "severity": "high",
+        "location": "其他 · 第 1 段",
+        "original_text": "候选人  |  男  |  1994 年  |  现居深圳  |  求职意向：后端开发工程师 / AI 应用工程（FDE）",
+        "suggested_text": "",
+        "why": "JD 要求本科及后端岗位基本可联系信息，原句只有姓名、性别、年份与城市，缺手机或邮箱，招聘方无法联系",
+        "gain": "从无法联系到可联系：补上手机或邮箱后，简历才具备投递闭环",
+        "jd_evidence": "本科",
+        "risk_note": "如确有相关经历请补充，否则不建议写；联系方式须为本人真实可用信息",
+        "score_impact": 0
+      },
+      {
+        "id": "R-002",
+        "category": "missing",
+        "severity": "high",
+        "location": "工作经历 · 第 1 段",
+        "original_text": "2017.07 - 2021.06    深圳某某电子商务有限公司    后端开发工程师",
+        "suggested_text": "",
+        "why": "JD 必备技能含 FastAPI；该段经历只体现 Go 与 MySQL，简历全文未出现 FastAPI 相关实践",
+        "gain": "从技能缺口到可核实：若确有 FastAPI 项目，补入后必备技能才有依据",
+        "jd_evidence": "FastAPI",
+        "risk_note": "如确有相关经历请补充，否则不建议写；不得把未用过的框架写成已有经历",
+        "score_impact": 4
+      },
+      {
+        "id": "R-003",
+        "category": "missing",
+        "severity": "medium",
+        "location": "工作经历 · 第 2 段",
+        "original_text": "· 负责订单系统接口开发，使用 Go 与 MySQL 完成下单、支付、退款全链路接口；",
+        "suggested_text": "",
+        "why": "JD 要求参与需求评审；原句只写接口开发与实现，未体现评审环节的参与",
+        "gain": "从只写开发到覆盖评审：补入评审参与后，职责链条才与 JD 对齐",
+        "jd_evidence": "参与需求评审",
+        "risk_note": "如确有相关经历请补充，否则不建议写；评审角色与频次须真实",
+        "score_impact": 5
+      },
+      {
+        "id": "R-004",
+        "category": "missing",
+        "severity": "medium",
+        "location": "工作经历 · 第 3 段",
+        "original_text": "· 负责数据库查询性能优化：定位慢查询并重建索引，订单查询耗时从 2 秒降至 120 毫秒；",
+        "suggested_text": "",
+        "why": "JD 要求设计并交付可维护的业务接口；原句只讲慢查询与索引优化，未体现接口设计与可维护性",
+        "gain": "从性能优化单点到接口设计交付：补入后职责覆盖更完整",
+        "jd_evidence": "设计并交付可维护的业务接口",
+        "risk_note": "如确有相关经历请补充，否则不建议写；可维护性做法须真实可述",
+        "score_impact": 5
+      },
+      {
+        "id": "R-005",
+        "category": "missing",
+        "severity": "medium",
+        "location": "工作经历 · 第 4 段",
+        "original_text": "· 引入 Redis 缓存热点商品与订单状态，数据库访问量下降约 40%。",
+        "suggested_text": "",
+        "why": "JD 要求排查线上故障；原句只写缓存引入与访问量下降，未体现故障排查经历",
+        "gain": "从优化成果到运维闭环：补入故障排查后，线上问题处理能力才有依据",
+        "jd_evidence": "排查线上故障",
+        "risk_note": "如确有相关经历请补充，否则不建议写；故障类型与处理结果须真实",
+        "score_impact": 5
+      },
+      {
+        "id": "R-006",
+        "category": "missing",
+        "severity": "medium",
+        "location": "工作经历 · 第 5 段",
+        "original_text": "2021.07 - 至今    上海某某信息科技有限公司    高级后端工程师",
+        "suggested_text": "",
+        "why": "JD 要求完善日志与发布流程；该段经历只列职位与公司，未出现日志或发布流程相关工作",
+        "gain": "从空白到可核实：补入日志与发布流程实践后，该职责才有对应事实",
+        "jd_evidence": "完善日志与发布流程",
+        "risk_note": "如确有相关经历请补充，否则不建议写；流程改进内容须真实",
+        "score_impact": 5
+      },
+      {
+        "id": "R-007",
+        "category": "missing",
+        "severity": "medium",
+        "location": "工作经历 · 第 6 段",
+        "original_text": "· 负责支付系统重构，支撑日均 300 万笔交易，主导灰度上线与回滚预案；",
+        "suggested_text": "",
+        "why": "JD 要求编写设计说明、测试与协作文档；原句只写重构与上线，未体现文档产出",
+        "gain": "从只写上线动作到覆盖文档交付：补入后协作与文档能力才有依据",
+        "jd_evidence": "编写设计说明、测试与协作文档",
+        "risk_note": "如确有相关经历请补充，否则不建议写；文档类型与用途须真实",
+        "score_impact": 5
+      }
+    ],
+    "profile": {
+      "title": "Go 后端开发工程师",
+      "source": "user_jd",
+      "confirmed": true,
+      "must_have": [
+        "Go",
+        "MySQL",
+        "Redis",
+        "FastAPI"
+      ],
+      "responsibilities": [
+        "参与需求评审",
+        "设计并交付可维护的业务接口",
+        "排查线上故障",
+        "完善日志与发布流程",
+        "编写设计说明、测试与协作文档"
+      ],
+      "note": "基于用户提供的真实 JD"
+    },
+    "score_before": 61,
+    "score_after_estimate": 61,
+    "adaptations": [],
+    "skipped": [
+      {
+        "issue_id": "R-001",
+        "before": "候选人  |  男  |  1994 年  |  现居深圳  |  求职意向：后端开发工程师 / AI 应用工程（FDE）",
+        "reason": "需本人补充经历，系统不代写"
+      },
+      {
+        "issue_id": "R-002",
+        "before": "2017.07 - 2021.06    深圳某某电子商务有限公司    后端开发工程师",
+        "reason": "需本人补充经历，系统不代写"
+      },
+      {
+        "issue_id": "R-003",
+        "before": "· 负责订单系统接口开发，使用 Go 与 MySQL 完成下单、支付、退款全链路接口；",
+        "reason": "需本人补充经历，系统不代写"
+      },
+      {
+        "issue_id": "R-004",
+        "before": "· 负责数据库查询性能优化：定位慢查询并重建索引，订单查询耗时从 2 秒降至 120 毫秒；",
+        "reason": "需本人补充经历，系统不代写"
+      },
+      {
+        "issue_id": "R-005",
+        "before": "· 引入 Redis 缓存热点商品与订单状态，数据库访问量下降约 40%。",
+        "reason": "需本人补充经历，系统不代写"
+      },
+      {
+        "issue_id": "R-006",
+        "before": "2021.07 - 至今    上海某某信息科技有限公司    高级后端工程师",
+        "reason": "需本人补充经历，系统不代写"
+      },
+      {
+        "issue_id": "R-007",
+        "before": "· 负责支付系统重构，支撑日均 300 万笔交易，主导灰度上线与回滚预案；",
+        "reason": "需本人补充经历，系统不代写"
+      }
+    ],
+    "meta": {
+      "model": "fallback（厂商未透传）",
+      "prompt_version": "revision_v1.1",
+      "cost_yuan": 0.00743248,
+      "jd_source": "user_jd",
+      "candidate_count": 9,
+      "accepted_count": 7,
+      "rejected_count": 2,
+      "resume_chars": 634,
+      "resume_truncated": false,
+      "json_retries": 0,
+      "status": "needs_review",
+      "reason": "",
+      "model_accepted_count": 7,
+      "injected_count": 0,
+      "injection_skipped": [],
+      "elapsed_ms": 11577.494,
+      "cost_over_budget": true,
+      "learning_ms": 557.536,
+      "uplift_ms": 0.443,
+      "has_external_links": true,
+      "learning_unavailable": false,
+      "semantic_attempts": 3,
+      "semantic_fallback": "used",
+      "semantic_errors": {},
+      "revision_cost_yuan": 0.00549496,
+      "resume_cost_yuan": 0.00033724000000000004,
+      "job_cost_yuan": 0.0005078000000000001,
+      "llm_cost_yuan": 0.00109248,
+      "llm_estimated": false,
+      "generated_at": "2026-11-14T09:44:07.858746+00:00",
+      "profile_version": "1",
+      "source": "user_jd",
+      "confirmed": true,
+      "jd_chars": 112,
+      "reasons": [
+        "简历抽取信息需要人工复核"
+      ],
+      "auto_applicable_ids": []
+    },
+    "rejected_issues": []
+  },
+  "profile": {
+    "title": "Go 后端开发工程师",
+    "source": "user_jd",
+    "confirmed": true,
+    "must_have": [
+      "Go",
+      "MySQL",
+      "Redis",
+      "FastAPI"
+    ],
+    "responsibilities": [
+      "参与需求评审",
+      "设计并交付可维护的业务接口",
+      "排查线上故障",
+      "完善日志与发布流程",
+      "编写设计说明、测试与协作文档"
+    ],
+    "note": "基于用户提供的真实 JD"
+  },
+  "mode": "user_jd",
+  "stats": {
+    "high": 2,
+    "medium": 5,
+    "low": 0,
+    "missing": 1,
+    "cost_yuan": 0.00743248,
+    "elapsed_ms": 11577.494,
+    "resume_chars": 634,
+    "jd_chars": 112
+  },
+  "learning_plan": {
+    "gaps": [
+      {
+        "gap": "FastAPI",
+        "why": "岗位「Go 后端开发工程师」的 JD 要求：FastAPI",
+        "severity": "high",
+        "materials": [
+          {
+            "id": "fastapi-official-tutorial",
+            "title": "Tutorial - User Guide - FastAPI",
+            "kind": "external",
+            "locator": "https://fastapi.tiangolo.com/tutorial/",
+            "tags": [
+              "FastAPI"
+            ],
+            "level": "入门",
+            "quality": 5,
+            "verified_at": "2026-11-13",
+            "note": "FastAPI 官方系统教程，逐步学习请求、响应与依赖注入"
+          }
+        ],
+        "meta": {
+          "matched_by": "family"
+        }
+      },
+      {
+        "gap": "参与需求评审",
+        "why": "岗位「Go 后端开发工程师」的 JD 要求：参与需求评审",
+        "severity": "medium",
+        "materials": [
+          {
+            "id": "fde-requirements",
+            "title": "Plan for AI adoption - Microsoft Cloud Adoption Framework",
+            "kind": "external",
+            "locator": "https://learn.microsoft.com/en-us/azure/cloud-adoption-framework/ai/plan",
+            "tags": [
+              "Requirements analysis",
+              "需求梳理与拆解",
+              "需求分析",
+              "业务拆解"
+            ],
+            "level": "入门",
+            "quality": 5,
+            "verified_at": "2026-11-14",
+            "note": "补齐从业务问题识别需求、拆成用例、排优先级并定义成功指标的能力；匹配方式：关键词"
+          }
+        ],
+        "meta": {
+          "matched_by": "keyword",
+          "keywords": [
+            "需求"
+          ]
+        }
+      },
+      {
+        "gap": "设计并交付可维护的业务接口",
+        "why": "岗位「Go 后端开发工程师」的 JD 要求：设计并交付可维护的业务接口",
+        "severity": "medium",
+        "materials": [
+          {
+            "id": "fde-delivery-acceptance",
+            "title": "Test and evaluate AI workloads on Azure - Microsoft Learn",
+            "kind": "external",
+            "locator": "https://learn.microsoft.com/en-us/azure/well-architected/ai/test",
+            "tags": [
+              "Delivery",
+              "交付",
+              "验收"
+            ],
+            "level": "进阶",
+            "quality": 5,
+            "verified_at": "2026-11-14",
+            "note": "补齐AI交付前的端到端测试、质量门槛和基于测试结果作出上线验收决策的能力；匹配方式：关键词"
+          }
+        ],
+        "meta": {
+          "matched_by": "keyword",
+          "keywords": [
+            "交付"
+          ]
+        }
+      },
+      {
+        "gap": "排查线上故障",
+        "why": "岗位「Go 后端开发工程师」的 JD 要求：排查线上故障",
+        "severity": "medium",
+        "materials": [
+          {
+            "id": "fde-vector-search",
+            "title": "Getting Started - Chroma Docs",
+            "kind": "external",
+            "locator": "https://docs.trychroma.com/docs/overview/getting-started",
+            "tags": [
+              "Vector search",
+              "向量检索",
+              "文档检索"
+            ],
+            "level": "入门",
+            "quality": 5,
+            "verified_at": "2026-11-14",
+            "note": "补齐创建向量集合、写入文档与执行相似检索的上手能力"
+          }
+        ],
+        "meta": {
+          "matched_by": "semantic",
+          "top1_id": "fde-vector-search",
+          "top1_cos": 0.505865383336915,
+          "top2_cos": 0.41794393425789683,
+          "margin": 0.08792144907901817,
+          "min_cos": 0.45,
+          "min_margin": 0.03,
+          "model": "BAAI/bge-small-zh-v1.5"
+        }
+      },
+      {
+        "gap": "完善日志与发布流程",
+        "why": "岗位「Go 后端开发工程师」的 JD 要求：完善日志与发布流程",
+        "severity": "medium",
+        "materials": [],
+        "meta": {
+          "matched_by": "none",
+          "top1_id": "fde-knowledge-base",
+          "top1_cos": 0.47534751020327987,
+          "top2_cos": 0.4579538054664071,
+          "margin": 0.01739370473687274,
+          "min_cos": 0.45,
+          "min_margin": 0.03,
+          "model": "BAAI/bge-small-zh-v1.5"
+        }
+      },
+      {
+        "gap": "编写设计说明、测试与协作文档",
+        "why": "岗位「Go 后端开发工程师」的 JD 要求：编写设计说明、测试与协作文档",
+        "severity": "medium",
+        "materials": [],
+        "meta": {
+          "matched_by": "none",
+          "top1_id": "fde-prompt-engineering",
+          "top1_cos": 0.5319790943830872,
+          "top2_cos": 0.5194742399244666,
+          "margin": 0.012504854458620596,
+          "min_cos": 0.45,
+          "min_margin": 0.03,
+          "model": "BAAI/bge-small-zh-v1.5"
+        }
+      }
+    ],
+    "unmatched": [
+      "完善日志与发布流程",
+      "编写设计说明、测试与协作文档"
+    ],
+    "meta": {
+      "materials_version": "1",
+      "elapsed_ms": null,
+      "cost_yuan": 0,
+      "model_calls": 3,
+      "local_model_calls": {
+        "embedding": 3,
+        "reranker": 0
+      },
+      "has_external": true,
+      "semantic_fallback": "used",
+      "semantic_attempts": 3,
+      "semantic_errors": {},
+      "unmatched_reasons": {
+        "完善日志与发布流程": "材料库暂无对应条目",
+        "编写设计说明、测试与协作文档": "材料库暂无对应条目"
+      },
+      "matched_by": {
+        "FastAPI": "family",
+        "参与需求评审": "keyword",
+        "设计并交付可维护的业务接口": "keyword",
+        "排查线上故障": "semantic",
+        "完善日志与发布流程": "none",
+        "编写设计说明、测试与协作文档": "none"
+      },
+      "gap_count_before_limit": 6,
+      "truncated_gaps": 0,
+      "materials_total": 4,
+      "omitted_by_material_limit": 0
+    }
+  },
+  "uplift_plan": {
+    "items": [
+      {
+        "part": "semantic",
+        "item": "JD 职责：参与需求评审",
+        "current": "未覆盖（cos=0.58）",
+        "potential": 5,
+        "action": "用你真实做过的一条经历回应「参与需求评审」：写清场景、你负责的部分、结果数字",
+        "requirement": "你真的做过这件事；这一条是新写，不是改写旧句",
+        "blocked": false
+      },
+      {
+        "part": "semantic",
+        "item": "JD 职责：设计并交付可维护的业务接口",
+        "current": "未覆盖（cos=0.67）",
+        "potential": 5,
+        "action": "用你真实做过的一条经历回应「设计并交付可维护的业务接口」：写清场景、你负责的部分、结果数字",
+        "requirement": "你真的做过这件事；这一条是新写，不是改写旧句",
+        "blocked": false
+      },
+      {
+        "part": "semantic",
+        "item": "JD 职责：排查线上故障",
+        "current": "未覆盖（cos=0.54）",
+        "potential": 5,
+        "action": "用你真实做过的一条经历回应「排查线上故障」：写清场景、你负责的部分、结果数字",
+        "requirement": "你真的做过这件事；这一条是新写，不是改写旧句",
+        "blocked": false
+      },
+      {
+        "part": "semantic",
+        "item": "JD 职责：完善日志与发布流程",
+        "current": "未覆盖（cos=0.57）",
+        "potential": 5,
+        "action": "用你真实做过的一条经历回应「完善日志与发布流程」：写清场景、你负责的部分、结果数字",
+        "requirement": "你真的做过这件事；这一条是新写，不是改写旧句",
+        "blocked": false
+      },
+      {
+        "part": "semantic",
+        "item": "JD 职责：编写设计说明、测试与协作文档",
+        "current": "未覆盖（cos=0.56）",
+        "potential": 5,
+        "action": "用你真实做过的一条经历回应「编写设计说明、测试与协作文档」：写清场景、你负责的部分、结果数字",
+        "requirement": "你真的做过这件事；这一条是新写，不是改写旧句",
+        "blocked": false
+      },
+      {
+        "part": "llm",
+        "item": "LLM 项目细节",
+        "current": "25/30",
+        "potential": 5,
+        "action": "补规模/团队角色/前后对比数字；下一轮评分会体现，本次不重算",
+        "requirement": "规模、团队角色、前后对比数字必须真实；需下一轮重新评分",
+        "blocked": true
+      },
+      {
+        "part": "hard",
+        "item": "必备技能：FastAPI",
+        "current": "未命中（技能项总权重 15 分）",
+        "potential": 4,
+        "action": "在技能栏补 FastAPI，并在相关经历里写出你真实的使用场景与产出",
+        "requirement": "你真的用过 FastAPI；写过但做不到，面试必露",
+        "blocked": false
+      }
+    ],
+    "achievable_if_true": 29,
+    "unreachable": [
+      "没做过的经历：不能通过改稿写成已有经历；如确有相关经历请补充，否则不建议写",
+      "LLM 项：本版不重跑，本次改稿无法取得这一分项的潜力分"
+    ],
+    "ceiling_note": "",
+    "notes": [
+      "用户实测：同一份简历，走完智能修改后总分不变。这不是缺陷，是三层评分的结构决定的：",
+      "① 硬性：真的具备 JD 的必备技能 → 在技能栏与相关经历中写出真实使用场景（每命中一条 +15/N）",
+      "② 语义：把 JD 要求、但简历里完全没有的职责，用你真实做过的事补成一条（覆盖 0 → 1，+30/n×余弦）",
+      "③ LLM：补项目细节（规模/角色/结果）→ 本版不重跑，只能说「下次评分会体现」",
+      "靠改简历永远拿不到的分数：年限不足、学历不达标、以及「没做过却要写的经历」。",
+      "规则诊断 5 条、ATS 缺词 1 项，仅作补充指引，不另计涨分；覆盖不变时，改措辞的余弦波动为 ±1。",
+      "以上为最多潜力，必须满足每条真实前提；逐项取整，实际变化以重新评分为准。"
+    ],
+    "meta": {
+      "cost_yuan": 0.0,
+      "model_calls": 0,
+      "typical_cos": 0.8,
+      "skill_group_count": 4,
+      "responsibility_count": 5,
+      "llm_estimated": false,
+      "candidate_count": 7,
+      "truncated_count": 0
+    }
+  },
+  "delta": {
+    "before_total": 61,
+    "after_total_estimate": 61,
+    "before_parts": {
+      "hard": 36,
+      "semantic": 0,
+      "llm": 25
+    },
+    "after_parts": {
+      "hard": 36,
+      "semantic": 0,
+      "llm": 25
+    },
+    "delta_parts": {
+      "hard": 0,
+      "semantic": 0,
+      "llm": 0
+    },
+    "estimated_fields": [
+      "llm"
+    ],
+    "covered_before": 0,
+    "covered_after": 0,
+    "notes": [
+      "硬性 0：词句改写不影响年限/学历",
+      "语义 0：覆盖条数未变（0 → 0），改写只影响措辞",
+      "LLM 30 分未重算，沿用改前 25 分（预估误差 ±2，以重新评分为准）",
+      "本次未改动任何句子，分数不变"
+    ],
+    "llm_tolerance": 2
+  }
+}

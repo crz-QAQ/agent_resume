@@ -1,0 +1,14 @@
+① 已量化：通过；2 秒→120 毫秒与七种量级符号均不误报
+② 无量化：通过；no_quantify=medium；工作经历 · 第 2 段；证据截断仍可检索
+③ 弱动词：通过；四种弱动词=low；七种结果词避免误报
+④ 时间重叠：通过；timeline_overlap=high；指出两段；不混入教育区间
+⑤ 无效时间：通过；timeline_invalid=high；年份倒序/月序倒序/未来结束年均覆盖
+⑥ 开放时间：通过；2021.07-至今及现在/目前均为 open_ended=medium
+⑦ 相对时间：通过；五种相对时间=medium；绝对年份不误报
+⑧ 缺项与证据：通过；missing_section=high；手机/邮箱正则；空原文 dropped=5、伪证据 dropped=1
+⑨ 技能空泛：通过；skill_flat=medium；方向词与族表对象直接复用评分模块
+⑩ ATS：通过；Go=3、技能/工作经历；MySQL 缺失；职责词来源、别名、跨行定位正确
+⑪ 族内命中：通过；DeepSeek←Qwen 覆盖；四族交叉命中；泛称/非同族不放宽
+⑫ 确定性与规范：通过；三次业务结果完全一致；排序/20条/30词/丢弃均正确；schemas_revision.py 41.3%；resume_diagnose.py 16.3%；check_resume_diagnose.py 15.7%；docstring 100%
+耗时 0.302045 秒（含业务模块导入）；零模型、零网络
+通过 12/12

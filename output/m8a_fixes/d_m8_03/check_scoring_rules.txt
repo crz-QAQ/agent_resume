@@ -1,0 +1,18 @@
+=== S3 + S3.5 硬性条件纯规则验收 ===
+[1] PASS：years=15；无扣分；min 优先且 0 有效
+[2] PASS：years=8；扣 7；小数边界通过
+[3] PASS：years=0；扣 15；差 2 年也为 0
+[4] PASS：JD 未写 years=15；仅 max 时正确回退
+[5] PASS：years=0；years_unknown；high；扣 15
+[6] PASS：本科/大专/不限/未知=10/0/10/0；最高学历及同义词通过
+[7] PASS：全中/一半/零中/空要求=15/8/0/15；原文兜底及余数通过
+[8] PASS：各组及 36 个三项组合均满足 sum(deduct)=40-score，证据齐全
+[9] PASS：Go/golang 命中；全部别名双向、大小写及内部空白通过
+[F1] PASS：同族三项 + DeepSeek → skills=15；无扣分；四族任一成员均可命中
+[F2] PASS：分母2；skills=8；Go扣7；单成员/自指族文案简化，多成员举例保留；技能守恒及三次确定性通过
+[F3] PASS：Go + Python简历 → skills=0；Go扣15；Go/Python不合并
+[F4] PASS：LLM 产品 API + DeepSeek → skills=15；全部别名反查、原文兜底通过
+app/scoring_rules.py: 注释 37/223=16.6%；docstring 7/7；PASS
+tools/check_scoring_rules.py: 注释 55/362=15.2%；docstring 19/19；PASS
+耗时 0.344 秒；纯本地，无网络
+通过 13/13

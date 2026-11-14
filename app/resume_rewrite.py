@@ -31,6 +31,7 @@ from app.schemas_revision import AdaptedText, DiagnosisReport, RevisionReport
 MISSING = "需本人补充经历，系统不代写"
 UNCHANGED = "需本人按真实月份/学历补全"
 NOT_FOUND = "未在正文找到（可能在文本框/页眉/艺术字）"
+CROSS_PARAGRAPH = "跨段落，需手动改（原句在文档里被拆成了多段）"
 ALREADY_CHANGED = "同一段落已有改动"
 TRACKED = "文档含未接受的修订痕迹，请先在 Word 里接受/拒绝后再试"
 JD_TOO_SIMILAR = "改写与 JD 原句过于雷同，等于抄 JD，建议改成你真实做过的事"
@@ -138,29 +139,58 @@ def _structure(document) -> tuple[int, int, int]:
     return tuple(len(document.element.xpath(f".//w:{tag}")) for tag in ("p", "tbl", "sectPr"))
 
 
-def _replace_runs(paragraph, before: str, after: str) -> bool:
-    """在保留所有 run 属性的前提下替换整段；不支持的复杂内容安全跳过。"""
+def _replacement_runs(paragraph, before: str):
+    """预检整段的可替换 run，多段修改须全部预检通过后才写入。"""
     runs = paragraph.runs
     # 超链接、域或内容控件可能不属于直接 runs；不能只改其中一部分。
     if not runs or "".join(run.text for run in runs) != paragraph.text:
-        return False
+        return None
     # 空 run 可能携带图片或锚点，不能为了清空文本而破坏这些对象。
     textual = [run for run in runs if run.text]
     # run.text 会清空 run 子节点；含图片、域等非文本节点时不能冒险修改。
     text_tags = {qn(tag) for tag in ("w:rPr", "w:t", "w:tab", "w:br", "w:cr")}
     if any(child.tag not in text_tags for run in textual for child in run._r):
-        return False
+        return None
     # 单 run 精确命中时直接采用该 run；跨 run 时以第一个有正文的 run 为准。
     target = next((run for run in textual if run.text == before), None)
     if target is None:
         # 纯分隔符的 run 不作为字体来源，优先继承真正正文的属性。
         target = next((run for run in textual if _normalize(run.text)), None)
     if target is None:
+        return None
+    return textual, target
+
+
+def _replace_runs(paragraph, before: str, after: str) -> bool:
+    """在保留所有 run 属性的前提下替换整段；不支持的复杂内容安全跳过。"""
+    replacement = _replacement_runs(paragraph, before)
+    if replacement is None:
         return False
+    textual, target = replacement
     for run in textual:
         # 只写文字，不触及字体、字号、粗斜体、颜色、下划线与段落属性。
         run.text = after if run is target else ""
     return True
+
+
+def _lines(text: str) -> list[str]:
+    """按 LF/CRLF 拆分并忽略空白行，保留非空行内的原有文字。"""
+    return [line for line in re.split(r"\r?\n", text) if line.strip()]
+
+
+def _multiline_match(candidates: list, before: str) -> list:
+    """仅在正文中定位连续且逐段整段匹配的原文，不跨越表格。"""
+    keys = [_normalize(line) for line in _lines(before)]
+    if not keys or not all(keys):
+        return []
+    for start in range(len(candidates) - len(keys) + 1):
+        block = candidates[start:start + len(keys)]
+        if [key for _, key in block] != keys:
+            continue
+        # XML 邻接可防止把表格前后的两个正文段落误认作同一连续块。
+        if all(left[0]._p.getnext() is right[0]._p for left, right in zip(block, block[1:])):
+            return [paragraph for paragraph, _ in block]
+    return []
 
 
 def rewrite_docx(raw: bytes, adaptations: list[AdaptedText]) -> RewriteOutcome:
@@ -176,6 +206,7 @@ def rewrite_docx(raw: bytes, adaptations: list[AdaptedText]) -> RewriteOutcome:
     counts = _structure(document)
     # 顺序固定为正文直接段落，再依次访问所有表格，不扫描页眉页脚。
     paragraphs = list(document.paragraphs)
+    body_candidates = [(paragraph, _normalize(paragraph.text)) for paragraph in paragraphs]
     seen: set = set()
     for table in document.tables:
         paragraphs.extend(_table_paragraphs(table, 1, seen))
@@ -192,18 +223,28 @@ def rewrite_docx(raw: bytes, adaptations: list[AdaptedText]) -> RewriteOutcome:
             continue
         # 严格整段等值，不使用位置描述猜测，也不回退到子串或模糊搜索。
         matches = [paragraph for paragraph, original in candidates if key and original == key]
+        multiline = "\n" in item.before
         if not matches:
-            skipped.append(_skip(item, NOT_FOUND))
-            continue
-        # 重复原文只定位到顺序中的第一段，不能悄悄改到另一个相同段落。
-        paragraph = matches[0]
-        if paragraph._p in changed:
+            matches = _multiline_match(body_candidates, item.before) if multiline else []
+            if not matches:
+                skipped.append(_skip(item, CROSS_PARAGRAPH if multiline else NOT_FOUND))
+                continue
+            lines = _lines(item.after)
+            # 行数多时最后一段吸收剩余行；行数少时保留多余段落并清空文字。
+            replacements = [lines[index] if index < len(lines) else "" for index in range(len(matches) - 1)]
+            replacements.append("\n".join(lines[len(matches) - 1:]))
+        else:
+            # 重复原文只定位第一段，不能悄悄改到另一个相同段落。
+            matches, replacements = matches[:1], [item.after]
+        if any(paragraph._p in changed for paragraph in matches):
             skipped.append(_skip(item, ALREADY_CHANGED))
-        elif not _replace_runs(paragraph, item.before, item.after):
+        elif any(_replacement_runs(paragraph, paragraph.text) is None for paragraph in matches):
             skipped.append(_skip(item, "段落含不支持的复杂内容，需本人在 Word 中修改"))
         else:
-            # 只有 run 实际替换成功才登记；跳过不占用该段落的修改名额。
-            changed.add(paragraph._p)
+            # 全部预检通过才逐段写入，一条多段意见只登记一次 applied。
+            for paragraph, after in zip(matches, replacements):
+                _replace_runs(paragraph, paragraph.text, after)
+                changed.add(paragraph._p)
             applied.append(_applied(item))
     # 没有采纳时直接返回原字节，连 ZIP 元数据也不必重新打包。
     buffer = BytesIO()
@@ -362,7 +403,8 @@ def apply_revisions(*, rep: RevisionReport, diagnosis: DiagnosisReport, raw: byt
         valid, reason = guard.validate_adaptation(item, resume_text, source)
         if not valid:
             # 定位失败的用户文案统一，名词和数字违规则保留护栏给出的具体原因。
-            skipped.append(_skip(item, NOT_FOUND if not guard.find_original(resume_text, item.before) else reason))
+            missing_reason = CROSS_PARAGRAPH if "\n" in item.before else NOT_FOUND
+            skipped.append(_skip(item, missing_reason if not guard.find_original(resume_text, item.before) else reason))
             continue
         if (jd_items and len(_normalize(item.after)) >= MIN_SIMILARITY_CHECK_LEN
                 and jd_overlap(item.after, jd_items) >= JD_SIMILARITY_LIMIT):
@@ -386,7 +428,11 @@ def apply_revisions(*, rep: RevisionReport, diagnosis: DiagnosisReport, raw: byt
     # 只把真正写入的条目回填报告，找不到原文或同段冲突不能伪装成已修改。
     applied_ids = {row["issue_id"] for row in rewritten.applied}
     report.adaptations = [item for item in adaptations if item.issue_id in applied_ids]
-    report.skipped = [*skipped, *rewritten.skipped]
+    # 整份拒绝（如修订痕迹）也映射到每条候选，API 不能返回缺少编号的原因。
+    report.skipped = [*skipped, *(row for row in rewritten.skipped if row.get("issue_id"))]
+    for row in rewritten.skipped:
+        if not row.get("issue_id"):
+            report.skipped.extend(_skip(item, row["reason"]) for item in adaptations)
     # 新增独立操作审计，不篡改 M3 历史模型费用或历史耗时。
     report.meta["rewrite_cost_yuan"] = 0
     report.meta["rewrite_elapsed_ms"] = round((perf_counter() - started) * 1000, 3)

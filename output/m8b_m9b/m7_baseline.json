@@ -1,0 +1,67 @@
+{
+  "A": {
+    "signature": "6248dff694bfef31ba973d6b07a798a0a82a86d96b05f4c075e2ef2a9363ec99",
+    "pages": 2,
+    "bytes": 117986
+  },
+  "B": {
+    "signature": "0355f6cade6e0daee62e630956866f6f39ff3d20a42df88f16b9b9e658da4c9f",
+    "pages": 2,
+    "bytes": 121678
+  },
+  "C": {
+    "signature": "e0b4ed7b08437b493697eeb04fff56d6b1182e94f588ca0650708f52212bc7e1",
+    "pages": 2,
+    "bytes": 94045
+  },
+  "D": {
+    "signature": "59fd1a38242dc62803f4bde8b16dd98e64d2117b8c52d7da74b42f5e8e3c619d",
+    "pages": 3,
+    "bytes": 117594
+  },
+  "E": {
+    "signature": "0f30e8312444babb828f7f4398b051b2d1170357606556d1ebaba6c44dee7c2c",
+    "pages": 3,
+    "bytes": 77046
+  },
+  "F": {
+    "signature": "ff4dfdaa7646f2a77c9a8619252267ea342288692ffb740d4f8de3b7c56c4729",
+    "pages": 3,
+    "bytes": 123058
+  },
+  "F-empty": {
+    "signature": "e1ee64fb8e41ead1b8a4cb94c0e803963178bab057b70cd8801ec49778e5127e",
+    "pages": 1,
+    "bytes": 65164
+  },
+  "F-adapted": {
+    "signature": "1a3c2d288ded937cf4a5c4f9bcc1837429065b401e98b8f7f7a18f8ea049134d",
+    "pages": 1,
+    "bytes": 69531
+  },
+  "G": {
+    "signature": "744200ed5602c65f529d902b611f5a34b4d82259fdd74671183511f6408d4801",
+    "pages": 7,
+    "bytes": 111844
+  },
+  "H-font": {
+    "signature": "45f898c20c158ee7e0bd5f5d6df2d2618648a975818253e582cefe6c91ee1668",
+    "pages": 2,
+    "bytes": 117991
+  },
+  "K1-delta": {
+    "signature": "dee5d6101448a8363196d89acc4fac56baf79f57dcaf212190152b13122c5319",
+    "pages": 3,
+    "bytes": 134713
+  },
+  "K1-no-delta": {
+    "signature": "7011fee7a15efc1a22d973498840628bbaf70676dd9033396358a7913370070b",
+    "pages": 2,
+    "bytes": 120619
+  },
+  "M7-zero-positive": {
+    "signature": "912ad566a9c1962f45a0814080246cae71e0e96f37c4654c8b6826cd026b1792",
+    "pages": 3,
+    "bytes": 132331
+  }
+}

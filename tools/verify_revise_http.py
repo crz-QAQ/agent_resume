@@ -1,4 +1,4 @@
-"""M7 A～G HTTP 验收：默认真实模型，--offline 仅替换模型响应，原始材料不落盘。"""
+"""M7/M8c/M9c HTTP 验收：默认真实模型，--offline 仅替换模型响应，原始材料不落盘。"""
 
 from __future__ import annotations
 
@@ -22,6 +22,7 @@ from uuid import uuid4
 
 import pdfplumber
 from docx import Document
+from docx.oxml import OxmlElement
 from fastapi.testclient import TestClient
 
 # 与生产入口使用相同包身份；脚本不依赖启动工作目录。
@@ -38,6 +39,7 @@ from app.resume_parser import ResumeParseResult
 from app.schemas import ResumeInfo
 from app.schemas_match import JobInfo
 from app.scoring_llm import LlmScore
+from app.learning_resources import ALLOWED_DOMAINS, load_materials
 
 
 FILENAME = "go_backend_resume.docx"
@@ -46,9 +48,11 @@ PROFILE_TITLE = "FDE 交付工程师"
 RESPONSIBILITIES = ["参与需求评审，设计并交付可维护的业务接口", "排查线上故障，完善日志与发布流程", "编写设计说明、测试与协作文档"]
 JD = (TITLE + "。要求3年以上经验、本科学历，熟悉Go、MySQL、Redis。岗位职责："
       + "；".join(RESPONSIBILITIES) + "。")
+# 为新增计划的真实正例明确加入简历未体现的 FastAPI，不改变原 M7 固定 JD。
+PLAN_JD = JD.replace("熟悉Go、MySQL、Redis", "熟悉Go、MySQL、Redis，必须掌握FastAPI")
 # 两份交付来自真实 HTTP 下载，不从生成函数再次构造另一份文件。
-OUTPUT_REVIEW = ROOT / "output/pdf/m7/M7_修改意见.pdf"
-OUTPUT_RESUME = ROOT / "output/docx/m7/go_backend_resume_修改版.docx"
+OUTPUT_REVIEW = ROOT / "output/pdf/m8c_m9c/M9c_修改意见.pdf"
+OUTPUT_RESUME = ROOT / "output/docx/m8c_m9c/go_backend_resume_修改版.docx"
 
 
 def _expect(condition: object, message: str) -> None:
@@ -81,6 +85,9 @@ async def _offline_provider(providers, prompt, *, system=None, **kwargs):
     # JD 分支仍会由 S1 解析及其三条护栏实际审核。
     elif system == SYSTEM_JOB:
         payload = _fixture_job().model_dump()
+        # 受控模式仍只输出当前固定 JD 实际出现的具体技能，不造词或伪造真实验收。
+        if "FastAPI" in prompt:
+            payload["must_have"].append("FastAPI")
     elif system == SYSTEM_REVISION:
         # 只读取生产 M3 生成的材料区，测试不另造诊断或定位。
         data = json.JSONDecoder().raw_decode(prompt.split("下面是材料数据：\n", 1)[1])[0]
@@ -129,6 +136,7 @@ class Acceptance:
         self.review, self.profile, self.inferred, self.applied = {}, {}, {}, {}
         # A2 可建立受控改写正例；一致性始终比较 A1/G2 的两次原始 HTTP 结果。
         self.baseline_review, self.match = {}, {}
+        self.plan_review = {}
         self.review_bytes, self.resume_bytes = b"", b""
 
     def run(self, label: str, action) -> None:
@@ -198,8 +206,11 @@ class Acceptance:
     def a2(self) -> str:
         """A2：实际应用后两个独立 URL 都能下载，格式跟随 Word 输入。"""
         if not self.review["report"]["meta"]["auto_applicable_ids"]:
-            # 真实模型可能只给缺项意见；原报告必须维持422，绝不回收 skipped。
-            _expect(self.post_apply().status_code == 422, "全部人工项不应自动写入简历")
+            # 真实模型可能只给人工项；报告仍可下载，不能伪造自动修改。
+            skipped = self.post_apply()
+            _expect(skipped.status_code == 200 and not skipped.json()["applied"] and skipped.json()["resume_url"] is None,
+                    "全部人工项未返回报告或被伪记为 applied")
+            _expect(self.client.get(skipped.json()["review_pdf_url"]).status_code == 200, "全部人工项报告下载失败")
             original_generate = pipeline.revision_llm.generate_issues
 
             async def controlled_revision(prompt, *, system=None, **kwargs):
@@ -218,7 +229,7 @@ class Acceptance:
             _expect(positive.status_code == 200 and positive.json()["report"]["meta"]["auto_applicable_ids"],
                     "受控M3正例未通过实际护栏")
             self.review = positive.json()
-            print("  真实报告全部人工项→422；自动修改正例使用独立受控M3响应，七道护栏及文件/HTTP均实跑", flush=True)
+            print("  真实报告全部人工项→200/报告可下载；自动修改正例使用独立受控M3响应，七道护栏及文件/HTTP均实跑", flush=True)
         # 申请应用后再走两个 GET 下载，不能只验证 URL 字符串存在。
         # 禁止改后再次评分；检查调用次数，避免哨兵异常被降级处理吞掉。
         with patch.object(pipeline.scoring_llm, "score_llm", AsyncMock(side_effect=AssertionError("改后禁止重跑LLM"))) as llm:
@@ -344,10 +355,10 @@ class Acceptance:
         _expect(self.client.get(f"/revise/file/{identifier}/bad").status_code == 404, "非法kind没有返回404")
         _expect(self.client.get(f"/revise/file/{identifier}/resume").status_code == 404, "合法ID能够越类型下载")
 
-    def _cached_models(self) -> ExitStack:
+    def _cached_models(self, review: dict | None = None) -> ExitStack:
         """复用已实测结构隔离协议分支，明确零新增模型费用，不伪装新的真实生成。"""
         # 使用 A1 已获得的可信结构，依赖模型内容的正常验收不会进入这里。
-        original = api._review_sessions[self.review["review_id"]][1]
+        original = api._review_sessions[(self.review if review is None else review)["review_id"]][1]
         stack = ExitStack()
         report = original.report.model_copy(deep=True)
         # 无新请求就无新增费用，不能把 A1 的历史费用重复加到账单。
@@ -523,7 +534,7 @@ class Acceptance:
         return "异常/failed均HTTP200；llm_estimated=true；LLM=0；PDF明确提示；改后LLM不重跑"
 
     def g3(self) -> str:
-        """G3：页面没有外链或持久存储，旧评分脚本与表单逐字保留，JS 能通过语法检查。"""
+        """G3：静态页面无硬编码外链或持久存储，旧评分脚本与表单保留，JS 语法有效。"""
         # 检查实际交付的单文件页面，不依赖模板或框架构建结果。
         html = (ROOT / "app/static/index.html").read_text(encoding="utf-8")
         _expect("https://" not in html and "localStorage" not in html and "document.cookie" not in html, "页面含外网或持久存储")
@@ -531,7 +542,7 @@ class Acceptance:
         old = subprocess.check_output(["git", "show", "HEAD:app/static/index.html"], cwd=ROOT).decode("utf-8")
         scripts = re.findall(r"<script>(.*?)</script>", html, re.S)
         _expect(scripts[0] == re.findall(r"<script>(.*?)</script>", old, re.S)[0], "评分脚本被改动")
-        old_panel = old.split('    <div class="workspace">', 1)[1].split("    <footer>", 1)[0]
+        old_panel = old.split('<section id="score-panel"', 1)[1].split('<section id="revise-panel"', 1)[0]
         _expect(old_panel in html, "评分表单或结果区域被改动")
         # node 从 stdin 检查语法，不往报告缓存写 JS 或临时 HTML。
         syntax = subprocess.run(["node", "--check"], input="\n".join(scripts), text=True, encoding="utf-8", capture_output=True)
@@ -566,7 +577,237 @@ for (const missing of [false, true, false]) {
         _expect(rendered.returncode == 0, "LLM正常/降级页面文案未正确渲染")
         _expect("renderDelta(payload.delta, payload.report.meta)" in html and
                 "renderDelta(payload.delta, state.review.report.meta)" in html, "分析/应用页面未传递降级标记")
-        return "外链0、持久存储0；评分原脚本/表单未改；两段JS语法通过；正常/降级文案实跑通过"
+        _expect(all(value in html for value in ("怎么才能涨分", "能力补强建议", 'link.target = "_blank"', 'link.rel = "noopener"')),
+                "新计划区块或外链保护缺失")
+        # 执行实际下载区函数，交替有/无简历检查旧链接撤销与恢复，不能只查源码文案。
+        downloads = re.search(r"      function renderApplyDownloads\(.*?(?=      /\*\* 只提交编号；)", scripts[1], re.S).group()
+        harness = r'''
+const nodes = new Map();
+const node = id => { if (!nodes.has(id)) nodes.set(id, {hidden: true,
+  removeAttribute(key) { delete this[key]; }, setAttribute(key, value) { this[key] = value; }}); return nodes.get(id); };
+const readable = value => String(value ?? "");
+const state = {review: {report: {issues: Array.from({length: 6}, (_, i) => ({id: "R-" + i, category: i < 5 ? "missing" : "inconsistent"}))}}};
+const base = "/revise/file/" + "a".repeat(32);
+const skipped = state.review.report.issues.map((issue, i) => ({issue_id: issue.id,
+  reason: i < 5 ? "需本人补充经历，系统不代写" : "需本人按真实月份/学历补全"}));
+// 四次切换覆盖首次显示、旧链接清理与重新启用。
+for (const [index, present] of [true, false, true, false].entries()) {
+  // 跨段原因优先，不能因意见分类为 inconsistent 就吞进补全信息数量。
+  if (!present) skipped[5].reason = index === 1 ? "需本人按真实月份/学历补全" : "跨段落，需手动改（原句在文档里被拆成了多段）";
+  renderApplyDownloads({review_pdf_url: base + "/review", resume_url: present ? base + "/resume" : null,
+    resume_ext: present ? "docx" : null, skipped: present ? [] : skipped});
+  const resume = node("revise-resume-download"), note = node("revise-no-resume");
+  if (resume["aria-disabled"] !== String(!present) || resume.tabIndex !== (present ? 0 : -1) ||
+      (present ? resume.href !== base + "/resume" : "href" in resume) || note.hidden !== present ||
+      node("revise-final-review").href !== base + "/review" || node("revise-downloads").hidden) throw new Error("下载状态错误");
+  if (!present && (!note.textContent.includes("5 条属于你缺的能力") ||
+      !note.textContent.includes((index === 1 ? 1 : 0) + " 条需你补全真实信息") ||
+      !note.textContent.includes((index === 3 ? 1 : 0) + " 条跨段落需手动改"))) throw new Error("三类数量错误");
+}
+// 三类均非零时也必须同时显示，且不能把跨段条目重复计算。
+state.review.report.issues.push({id: "R-6", category: "inconsistent"});
+renderApplyDownloads({review_pdf_url: base + "/review", resume_url: null, resume_ext: null,
+  skipped: [...skipped, {issue_id: "R-6", reason: "需本人按真实月份/学历补全"}]});
+const combined = node("revise-no-resume").textContent;
+if (!["5 条属于你缺的能力", "1 条需你补全真实信息", "1 条跨段落需手动改"].every(text => combined.includes(text))) throw new Error("三类未同时显示");
+'''
+        # null 不得被当成畸形 URL；有 URL 时仍走同源校验。
+        checked = subprocess.run(["node"], input=downloads + harness, text=True, encoding="utf-8", capture_output=True)
+        _expect(checked.returncode == 0, "零改写下载区状态/统计错误")
+        _expect('pointer-events: none' in html and '#revise-resume-download[aria-disabled="true"]' in html, "禁用下载未置灰/拦截点击")
+        return "评分原脚本/表单未改；JS语法通过；计划/LLM文案通过；下载状态切换正确；缺能力/补信息/跨段手改5/1/0、5/0/1、5/1/1均通过"
+
+    def i1(self) -> str:
+        """I1：真实 HTTP 计划正例，两份计划存在且至少一条意见具有正分数影响。"""
+        response = self.post_review(data={"job_title": TITLE, "jd_text": PLAN_JD})  # 正常路径完整执行模型和 HTTP。
+        _expect(response.status_code == 200, f"新增计划预期200，实际HTTP {response.status_code}")
+        self.plan_review = response.json()
+        learning, uplift = self.plan_review.get("learning_plan"), self.plan_review.get("uplift_plan")  # 均需真实返回。
+        _expect(isinstance(learning, dict) and isinstance(uplift, dict), "响应缺少学习计划或涨分策略")
+        _expect(any(issue["score_impact"] > 0 for issue in self.plan_review["report"]["issues"]), "所有分数影响仍为 0")
+        meta = self.plan_review["report"]["meta"]  # 不依赖测试器自己补充耗时或状态。
+        _expect(meta["learning_ms"] >= 0 and meta["uplift_ms"] >= 0 and meta["learning_unavailable"] is False,
+                "计划耗时或可用状态未显式记录")
+        # 编排层显式打开兜底，HTTP meta 与内部计划必须同源，不能只在底层支持开关。
+        _expect(meta["semantic_fallback"] != "disabled" and
+                all(meta[key] == learning["meta"][key] for key in ("semantic_fallback", "semantic_attempts", "semantic_errors")),
+                "HTTP未启用语义兜底或审计元数据未回填")
+        # 全部已由确定性层命中时无需语义；不能强迫为增加计数而调用模型。
+        if meta["semantic_attempts"] == 0:
+            _expect(all(row["meta"]["matched_by"] in {"family", "keyword"} for row in learning["gaps"]),
+                    "未匹配项没有进入已启用的语义层")
+        # 此处只核对元数据来源，不重新计算任何学习缺口或匹配分数。
+        # 每个返回的外链既要在白名单内，也要精确存在于本轮加载的材料库。
+        materials, _ = load_materials()  # 用实际库精确核对 URL，不只看协议或主机后缀。
+        expected = {row.locator for row in materials if row.kind == "external"}
+        links = [material["locator"] for gap in learning["gaps"] for material in gap["materials"] if material["kind"] == "external"]
+        _expect(links and all(url in expected and urlsplit(url).hostname in ALLOWED_DOMAINS for url in links), "外链不来自材料库白名单")
+        _expect(meta["has_external_links"] is True, "外链标记丢失")  # 与实际已推荐材料一致。
+        # 仅保存实际 HTTP 的脱敏响应，供浏览器重放截图；不保存上传字节或全文。
+        out = ROOT / "output/m8c_m9c"
+        out.mkdir(parents=True, exist_ok=True)
+        (out / "review_payload.json").write_text(json.dumps(self.plan_review, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        (out / "ui_request.json").write_text(json.dumps({"job_title": TITLE, "jd_text": PLAN_JD, "filename": FILENAME},
+                                                        ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        return f"learning/uplift 均非空；正影响意见存在；材料链接 {len(links)} 条均来自白名单；成本 {meta['cost_yuan']:.8f} 元"
+
+    def i2(self) -> str:
+        """I2：意见 FastAPI 的分数影响与对应策略及原扣分逐项一致。"""
+        _expect(bool(self.plan_review), "计划场景尚未完成")
+        issues = self.plan_review["report"]["issues"]  # 使用 I1 的同一份响应，不另造意见。
+        issue = next((row for row in issues if row["category"] == "missing" and row["jd_evidence"] == "FastAPI"), None)
+        item = next((row for row in self.plan_review["uplift_plan"]["items"]
+                     if row["part"] == "hard" and row["item"] == "必备技能：FastAPI" and not row["blocked"]), None)
+        _expect(issue is not None and item is not None, "没有 FastAPI 意见与对应硬性策略")
+        outcome = api._review_sessions[self.plan_review["review_id"]][1]
+        deduction = next(row for row in outcome._hard.deductions if row.type == "missing_skill" and row.jd_evidence == "FastAPI")
+        _expect(issue["score_impact"] == item["potential"] == deduction.deduct > 0, "score_impact/potential/真实扣分不一致")
+        return f"FastAPI：score_impact = potential = deduct = {deduction.deduct}；未重算或估造分数"
+
+    def i3(self) -> str:
+        """I3：真实缺失及损坏材料库均局部降级，HTTP 200 且明确标记不可用。"""
+        _expect(bool(self.plan_review), "计划场景尚未完成")
+        # 临时文件只包含坏 JSON，无任何简历内容；删除范围留在工作区 tmp 中。
+        with TemporaryDirectory(prefix="m9c_materials_", dir=ROOT / "tmp") as directory:
+            path = Path(directory).resolve()
+            _expect(path.is_relative_to(ROOT.resolve()), "临时测试目录越界")
+            broken = path / "broken.json"  # 故意不存在的邻接路径用于另一种失败模式。
+            broken.write_text("{", encoding="utf-8")
+            for candidate in (path / "missing.json", broken):
+                with self._cached_models(self.plan_review), patch.object(pipeline, "load_materials", side_effect=lambda: load_materials(candidate)):
+                    response = self.post_review(data={"job_title": TITLE, "jd_text": PLAN_JD})
+                _expect(response.status_code == 200, f"材料库故障预期200，实际HTTP {response.status_code}")
+                payload = response.json()  # HTTP 应继续成功，不以外层异常兜底成 500。
+                meta = payload["report"]["meta"]
+                _expect(payload["learning_plan"] is None and payload["uplift_plan"] is not None
+                        and meta["learning_unavailable"] is True and meta["has_external_links"] is False,
+                        "降级静默、沿用旧材料或连带丢失涨分策略")
+                _expect(str(candidate) not in response.text, "降级泄漏材料库本机路径")  # 只公开固定的失败说明。
+        # 故障夹具增加明确没有关键词的缺口，防止正常条目全被新关键词层解决。
+        original_learning = pipeline.build_learning_plan
+
+        def learning_with_unknown(**kwargs):
+            """仅构造未匹配输入，实际分层匹配及异常降级仍执行生产函数。"""
+            source = kwargs["diagnosis"]
+            kwargs["diagnosis"] = source.model_copy(update={"missing_keywords": [*source.missing_keywords,
+                "推动方案从演示走向实际使用并解决使用中的问题"]})
+            return original_learning(**kwargs)
+
+        # 本地向量失败属于局部降级，真实 HTTP 仍200且明确列出未匹配与错误类型。
+        with self._cached_models(self.plan_review), patch("app.learning_resources._local_semantic_match",
+                side_effect=RuntimeError("PRIVATE_REORDER_FAILURE")), patch.object(pipeline, "build_learning_plan", learning_with_unknown):
+            response = self.post_review(data={"job_title": TITLE, "jd_text": PLAN_JD})
+        _expect(response.status_code == 200, "本地重排异常导致HTTP失败")
+        payload = response.json()
+        _expect(payload["learning_plan"]["unmatched"] and payload["report"]["meta"]["semantic_errors"] and
+                payload["report"]["meta"]["semantic_fallback"] == "unavailable" and "PRIVATE_REORDER_FAILURE" not in response.text,
+                "重排失败未记录未匹配/错误或泄漏异常详情")
+        # 含明确错误类型即可追踪降级，不把内部异常正文发给页面。
+        return "缺失/坏JSON均HTTP200且材料库明确降级；本地重排异常HTTP200、unmatched/semantic_errors保留"
+
+    def j1(self) -> str:
+        """J1：六条真实缺项经过完整 apply，零改写也保存可下载的完整报告。"""
+        source = api._review_sessions[self.plan_review["review_id"]]
+        outcome = source[1].model_copy(deep=True)
+        template = outcome.report.issues[0]
+        # 明确构造六条缺项作为边界输入，实际改写、计分、PDF、存储和 HTTP 均不替换。
+        outcome.report.issues = [template.model_copy(update={"id": f"R-{index:03}", "category": "missing",
+            "suggested_text": ""}) for index in range(1, 7)]
+        outcome.report.meta["auto_applicable_ids"] = []
+        # 新会话复用已生成的计划，仅改造所需边界输入，不增加模型费用。
+        identifier = uuid4().hex
+        api._review_sessions[identifier] = (source[0], outcome, source[2], source[3])
+        resumes_before = set(self.cache.glob("*__resume.*"))
+        # 记录文件集合以证明零改写没有旁路存入简历产物。
+        for selection in (None, [row.id for row in outcome.report.issues]):
+            response = self.client.post("/revise/apply", json={"review_id": identifier, "selected_ids": selection})
+            self.responses.append(response.json())
+            _expect(response.status_code == 200, "全部 skipped 未返回200")
+            payload = response.json()
+            # skipped 必须逐条带编号和原因，六条 missing 不得计入 applied。
+            _expect(payload["applied"] == [] and len(payload["skipped"]) == 6 and
+                    all(row.get("issue_id") and row.get("reason") for row in payload["skipped"]), "缺项被伪改写或跳过原因丢失")
+            _expect(payload["resume_url"] is None and payload["resume_ext"] is None and isinstance(payload["delta"], dict), "零改写下载字段或 delta 错误")
+            pdf = self.client.get(payload["review_pdf_url"])
+            _expect(pdf.status_code == 200, "零改写报告不可下载")
+            text = "".join(_pdf_text(pdf.content).split())
+            # 标题使用渲染器的实际章节名称，比较最终 PDF 提取文字。
+            _expect(all(title in text for title in ("8能力补强建议", "9涨分策略")), "零改写报告遗漏第8/9章")
+        _expect(resumes_before == set(self.cache.glob("*__resume.*")), "零改写仍保存了冒充修改版的原件")
+        # 零意见也应产生报告，不因为 skipped 为空退回旧的422。
+        outcome.report.issues = []
+        empty = self.client.post("/revise/apply", json={"review_id": identifier})
+        _expect(empty.status_code == 200 and empty.json()["applied"] == [] and empty.json()["skipped"] == [] and
+                self.client.get(empty.json()["review_pdf_url"]).status_code == 200, "零意见无法下载报告")
+        # 整份 Word 因修订痕迹拒绝时，也必须为实际候选逐条返回 issue_id/reason。
+        source = api._review_sessions[self.review["review_id"]]
+        document = Document(BytesIO(source[2]))
+        document.paragraphs[0]._p.append(OxmlElement("w:ins"))
+        buffer = BytesIO()
+        document.save(buffer)
+        api._review_sessions[identifier] = (source[0], source[1].model_copy(deep=True), buffer.getvalue(), source[3])
+        tracked = self.client.post("/revise/apply", json={"review_id": identifier})
+        _expect(tracked.status_code == 200 and not tracked.json()["applied"] and tracked.json()["skipped"] and
+                all(row.get("issue_id") and row.get("reason") for row in tracked.json()["skipped"]), "整份拒绝缺少逐条原因")
+        return "构造6条missing：默认/显式全选均200；applied=[]、skipped=6逐条带原因；报告GET200含第8/9章；resume_url/ext=null；零意见也200"
+
+    def j2(self) -> str:
+        """J2：原句含换行但 Word 分成多段，HTTP 应整体改写并保留其余 XML。"""
+        document = Document()
+        # 无关段落补足实际解析器的最短文本阈值，同样必须逐字不变。
+        for text in ("保留开头，本用例核对多段原句及下载产物，并逐字保留此段所有内容。", "整理内部操作手册", "维护内部交接清单", "保留结尾"):
+            document.add_paragraph(text)
+        document.add_table(rows=1, cols=1).cell(0, 0).text = "保留表格"
+        document.add_section()
+        # 第二个 section 同样参与守恒检查，不能只验证单页默认文档。
+        buffer = BytesIO()
+        document.save(buffer)
+        raw = buffer.getvalue()
+        source = api._review_sessions[self.review["review_id"]]
+        outcome = source[1].model_copy(deep=True)
+        before = "整理内部操作手册\r\n维护内部交接清单"
+        after = "完成内部操作手册整理\n完成内部交接清单维护"
+        # 仅固定待应用意见；原文护栏、JD 闸门和跨段替换仍用生产实现。
+        outcome.resume_text = extract_text("multiline.docx", raw)
+        # 原句中的 CRLF 与解析器正文中的 LF 可由既有护栏规范化核对。
+        outcome.report.issues = [outcome.report.issues[0].model_copy(update={"id": "R-MULTI", "category": "weak_evidence",
+            "original_text": before, "suggested_text": after})]
+        identifier = uuid4().hex
+        api._review_sessions[identifier] = (source[0], outcome, raw, "multiline.docx")
+        # 请求只提交服务端意见编号，不能把 before/after 从客户端传入生产端点。
+        response = self.client.post("/revise/apply", json={"review_id": identifier, "selected_ids": ["R-MULTI"]})
+        self.responses.append(response.json())
+        _expect(response.status_code == 200 and len(response.json()["applied"]) == 1, "跨段 HTTP 未整体改写成功")
+        payload = response.json()
+        # 文件下载必须执行路由和存储读回，不能只检查返回 URL 的形状。
+        download = self.client.get(payload["resume_url"])
+        _expect(download.status_code == self.client.get(payload["review_pdf_url"]).status_code == 200, "跨段双下载失败")
+        old, new = Document(BytesIO(raw)), Document(BytesIO(download.content))
+        # 计数从最终 DOCX 全 XML 独立统计，包含表格中的段落。
+        _expect(all(len(old.element.xpath(f".//w:{tag}")) == len(new.element.xpath(f".//w:{tag}"))
+                    for tag in ("p", "tbl", "sectPr")), "跨段落结构数量变化")
+        _expect([paragraph.text for paragraph in new.paragraphs[1:3]] == after.split("\n"), "跨段对应行替换失败")
+        for index, (left, right) in enumerate(zip(old.paragraphs, new.paragraphs)):
+            if index not in (1, 2):
+                _expect(left.text == right.text and left._p.xml == right._p.xml, "其余段落未逐字保留")
+        _expect(old.tables[0]._tbl.xml == new.tables[0]._tbl.xml, "未选表格变化")
+        return "CRLF原句→连续2段分别替换；applied=1；双下载200；段落/表格/section守恒，其余段落逐字/XML相同"
+
+    def j3(self) -> str:
+        """J3：旧自动改写双下载不回归，空选择/全无效仍422，混合编号保留有效项。"""
+        selected = self.review["report"]["meta"]["auto_applicable_ids"][0]
+        # 混选合法与未知编号时仅应用现有意见，全未知编号另行严格拒绝。
+        for selection in (None, [selected, "DOES-NOT-EXIST"]):
+            response = self.post_apply(selection)
+            _expect(response.status_code == 200 and len(response.json()["applied"]) >= 1, "可改旧场景回归")
+            payload = response.json()
+            _expect(payload["resume_ext"] == "docx" and self.client.get(payload["resume_url"]).status_code ==
+                    self.client.get(payload["review_pdf_url"]).status_code == 200, "旧场景双下载失败")
+        for selection, detail in (([], "没有选择可自动修改的条目"), (["DOES-NOT-EXIST"], "勾选条目无效，请重新选择")):
+            # 精确中文消息属于接口契约，避免状态码正确却误导用户。
+            invalid = self.post_apply(selection)
+            _expect(invalid.status_code == 422 and invalid.json()["detail"] == detail, "错误勾选被放宽或错误文案变化")
+        return "默认/有效+无效混选：applied≥1、双下载200；显式[]及全无效ID仍422且文案不变"
 
     def h1(self) -> None:
         """H1：新旧存储隔离、扩展名、ID、展示名与 TTL 均实测。"""
@@ -623,6 +864,27 @@ for (const missing of [false, true, false]) {
         return "；".join(summaries) + "；docstring100%；旧存储三函数逐字未改"
 
 
+class _LogTee:
+    """同步写控制台和验收日志，进程中断时保留已完成用例与费用记录。"""
+
+    def __init__(self, console, logfile):
+        """仅保留当前输出句柄，不接触上传原件或模型内容。"""
+        self.console, self.logfile = console, logfile
+
+    def write(self, value: str) -> int:
+        """每次输出立即落盘，避免终端重启丢失验收证据。"""
+        # 日志仅含脚本原有公开摘要；隐私检查仍捕获内部响应与应用日志。
+        self.console.write(value)
+        self.logfile.write(value)
+        self.flush()
+        return len(value)
+
+    def flush(self) -> None:
+        """同时刷新两个目标，完整保留执行到当前步骤的输出。"""
+        self.console.flush()
+        self.logfile.flush()
+
+
 def main(*, offline: bool = False, direct_models: bool = False) -> int:
     """先跑真实正常链路，再检查受控异常；隔离缓存且按真实 UsageMeter 合计全部费用。"""
     # 所有状态按本次运行初始化，账单不借用以前脚本的统计。
@@ -651,7 +913,7 @@ def main(*, offline: bool = False, direct_models: bool = False) -> int:
         return original_semantic(*args, **kwargs)
 
     label = "离线受控模型" if offline else "真实模型"
-    print(f"M7 TestClient 验收（{label}；隔离 reports 缓存，不改历史样张）", flush=True)
+    print(f"M7/M8c/M9c TestClient 验收（{label}；隔离 reports 缓存，不改历史样张）", flush=True)
     # 暂存目录只接收生产存储 API 写出的最终产物，不复制上传原件。
     with TemporaryDirectory(prefix="m7_reports_") as directory, ExitStack() as stack:
         cache = Path(directory)
@@ -685,6 +947,10 @@ def main(*, offline: bool = False, direct_models: bool = False) -> int:
                  ("E2 空选择422", acceptance.e2), ("F 修改统计", acceptance.f),
                  ("G1 旧GET接口", acceptance.g1), ("G2 旧评分真实回归", acceptance.g2),
                  ("G4 同输入分数一致", acceptance.g4), ("G5 LLM失败降级", acceptance.g5),
+                 ("I1 学习/涨分计划响应", acceptance.i1), ("I2 分数影响一致性", acceptance.i2),
+                 ("I3 材料库失败降级", acceptance.i3),
+                 ("J1 全skipped报告可下载", acceptance.j1), ("J2 跨段落原句", acceptance.j2),
+                 ("J3 自动改写/勾选不回归", acceptance.j3),
                  ("G3 页面与JS", acceptance.g3), ("D1 仅最终文件落盘", acceptance.d1),
                  ("D2 响应隐私", acceptance.d2), ("D3 日志隐私", acceptance.d3),
                  ("H1 存储/会话TTL", acceptance.h1), ("H2 注释与兼容", acceptance.h2))
@@ -708,5 +974,14 @@ if __name__ == "__main__":
     parser.add_argument("--offline", action="store_true", help="只替换供应商响应，不计为真实模型验收")
     # 代理失效时可显式直连；不改变 API 或全局供应商配置。
     parser.add_argument("--direct-models", action="store_true", help="仅本次验收绕过模型主机代理")
+    # 持久日志独立于临时 reports，重启后也可核实已发请求的验收进度。
+    parser.add_argument("--log", type=Path, help="同时保存完整 UTF-8 验收输出")
     arguments = parser.parse_args()
-    raise SystemExit(main(offline=arguments.offline, direct_models=arguments.direct_models))
+    if arguments.log:
+        # 仅写指定验收摘要文件，不把上传原文或供应商响应写入文件。
+        arguments.log.parent.mkdir(parents=True, exist_ok=True)
+        with arguments.log.open("w", encoding="utf-8") as logfile, redirect_stdout(_LogTee(sys.stdout, logfile)):
+            status = main(offline=arguments.offline, direct_models=arguments.direct_models)
+    else:
+        status = main(offline=arguments.offline, direct_models=arguments.direct_models)
+    raise SystemExit(status)

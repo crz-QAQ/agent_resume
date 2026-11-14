@@ -6,13 +6,14 @@ from collections import Counter
 from io import BytesIO
 import re
 from typing import TYPE_CHECKING
+from xml.sax.saxutils import quoteattr
 
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_RIGHT
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import mm
-from reportlab.platypus import Frame, KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from reportlab.platypus import Flowable, Frame, KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from app import pdf_font
 from app.job_profile import profile_banner
@@ -22,11 +23,12 @@ from app.pdf_kit import (
 )
 # 勾叉沿用评分报告已有的单字缺字补画器，避免建立第二份符号实现。
 from app.report_pdf import _VerdictMark
-from app.schemas_revision import DiagnosisReport, ReviewIssue, RevisionReport, ScoreDelta
+from app.schemas_revision import DiagnosisReport, ReviewIssue, RevisionReport, ScoreDelta, UpliftPlan
 
 if TYPE_CHECKING:
     # 类型提示不导入评分或模型模块，渲染入口只读取传入属性。
     from app.scoring_rules import HardScore
+    from app.learning_resources import LearningGap, LearningPlan
 
 
 DISCLAIMER = "本报告由 AI 生成，所有建议须本人核对真实性后再使用"
@@ -37,6 +39,12 @@ UNCHANGED_GUIDANCE = "（此行需你补全：按实际在职月份/学历填写
 CATEGORY_LABELS = {"missing": "缺失项", "weak_evidence": "表达太弱", "buried": "重点埋没",
                    "inconsistent": "前后不一致", "noise": "无关冗余"}
 SEVERITY_LABELS = {"high": "高", "medium": "中", "low": "低"}
+# PRD §7.6 原文逐字保存；渲染层只排版，不临时总结或改写解释。
+UPLIFT_INTRO = ("本次改写只优化表达，分数基本不变 —— 因为硬性分由年限/学历/技能命中决定，"
+                "语义分由「JD 职责是否被覆盖」决定，两者都不看措辞。想涨分，做下面这几件事。")
+LEARNING_INTRO = "以下是你本次简历里没有体现、但 JD 明确要求的能力。改简历不能替代学能力，这里给出对应的学习材料。"
+ZERO_DELTA_NOTE = ("本次改动不影响分数：硬性看事实（年限/学历/技能命中），语义看覆盖，"
+                   "两者都不看措辞 —— 具体怎么才能涨分，见第 9 章。")
 
 
 def _render_suggestion(issue: ReviewIssue) -> tuple[str, bool]:
@@ -59,23 +67,44 @@ def _unchangeable_rows(diagnosis: DiagnosisReport, hard: HardScore | None) -> li
         for deduction in hard.deductions:
             # 不使用扣分金额推算年限差距，现状只取上游原证据。
             if deduction.type in ("years_short", "years_unknown"):
-                rows.append(["年限", deduction.resume_evidence, "年限差距靠措辞改不动，需真实经历或换岗位",
-                             "如实填写真实工作年限，或考虑要求适合的岗位"])
+                rows.append((deduction.type, ["年限", deduction.resume_evidence, "年限差距靠措辞改不动，需真实经历或换岗位",
+                             "如实填写真实工作年限，或考虑要求适合的岗位"]))
             elif deduction.type in ("education", "education_unknown"):
-                rows.append(["学历", deduction.resume_evidence, "学历是硬门槛，可改的只有如实填写",
-                             "核对并填写真实学历，不添加不存在的学位"])
+                rows.append((deduction.type, ["学历", deduction.resume_evidence, "学历是硬门槛，可改的只有如实填写",
+                             "核对并填写真实学历，不添加不存在的学位"]))
     for finding in diagnosis.findings:
         # 这些 code 的处理是固定规则，不把其他写作问题扩大成硬性障碍。
         if finding.code in ("timeline_overlap", "timeline_invalid", "open_ended"):
-            rows.append(["时间线", finding.evidence, "时间线矛盾需本人核实，改写会变成造假",
-                         "核实真实起止年月与在职状态，不编造日期"])
+            rows.append((finding.code, ["时间线", finding.evidence, "时间线矛盾需本人核实，改写会变成造假",
+                         "核实真实起止年月与在职状态，不编造日期"]))
         elif finding.code == "missing_section":
             # 联系方式、姓名缺项不冒充年限或学历硬门槛。
             item = "年限" if "年限" in finding.detail else "学历" if re.search(r"学历|教育", finding.detail) else None
             if item:
-                rows.append([item, finding.detail, "缺项只能本人补，系统不代拟", f"本人核实并补充真实{item}"])
-    # 相同证据只显示一次，保留硬分在前、诊断在后的原始顺序。
-    return [list(row) for row in dict.fromkeys(tuple(row) for row in rows)]
+                rows.append((finding.code, [item, finding.detail, "缺项只能本人补，系统不代拟", f"本人核实并补充真实{item}"]))
+    groups = {}
+    for code, row in rows:
+        # 同一 code 只合并相同清单项，missing_section 的年限与学历不能互相覆盖。
+        group = groups.setdefault((code, row[0]), [])
+        if row not in group:
+            group.append(row)
+    merged = []
+    for (code, item), group in groups.items():
+        # 使用新列表汇总展示，原始诊断和硬性扣分记录保持不变。
+        row = list(group[0])
+        if len(group) > 1:
+            # 摘要只使用现成证据；优先提取原文日期范围，不推算月份或改动诊断。
+            summaries = []
+            for source in group:
+                dates = re.findall(r"\d{4}[./年-]\d{1,2}(?:月)?\s*[-—~至]\s*(?:\d{4}[./年-]\d{1,2}(?:月)?|至今|今)", source[1])
+                summaries.append("、".join(dates) if dates else " ".join(source[1].split())[:60])
+            labels = {"timeline_overlap": "时间线矛盾", "timeline_invalid": "日期异常", "open_ended": "在职月份待核实"}
+            label = labels.get(code, item + "信息")
+            unit = "段经历" if item == "时间线" else "项"
+            row[1] = f"{label}（{len(group)} {unit}）：" + "、".join(summaries)
+        merged.append(row)
+    # 首次出现顺序不变，单条证据保持原样，渲染层不新增评分或意见。
+    return merged
 
 
 def _banner(text: str, background: str, styles: dict) -> Table:
@@ -90,7 +119,22 @@ def _banner(text: str, background: str, styles: dict) -> Table:
     return table
 
 
-def _card(issue: ReviewIssue, styles: dict) -> Table:
+def _impact_text(issue: ReviewIssue, plan: UpliftPlan) -> str:
+    """展示上游分数影响；只有唯一策略项明确回链时才描述对应技能或职责。"""
+    if issue.score_impact == 0:
+        return "预计分数影响：0（仅优化表达）"
+    # 分值直接读取派生字段，不在 PDF 中重新计算或认可模型自报潜力。
+    matches = [item for item in plan.items if not item.blocked and item.potential == issue.score_impact
+               and item.item in (f"必备技能：{issue.jd_evidence}", f"JD 职责：{issue.jd_evidence}")]
+    reason = "需满足涨分策略中的真实前提"
+    if len(matches) == 1:
+        item = matches[0]
+        reason = (f"解除必备技能 {item.item.removeprefix('必备技能：')} 的扣分" if item.part == "hard"
+                  else f"补足 JD 职责覆盖：{item.item.removeprefix('JD 职责：')}")
+    return f"预计分数影响：{issue.score_impact:+d}（{reason}）"
+
+
+def _card(issue: ReviewIssue, styles: dict, *, uplift_plan: UpliftPlan | None = None) -> Table:
     """建立一张意见卡片，调用方整体 KeepTogether，所有字段转义并按列宽截断。"""
     # 卡片内合并排版空白，防止原文大量换行把一张限长卡片撑到超过整页。
     # 只创建显示副本，原文的字词、数字及调用者的意见对象保持不变。
@@ -118,6 +162,9 @@ def _card(issue: ReviewIssue, styles: dict) -> Table:
             [Paragraph("JD 依据：" + _field(issue.jd_evidence, limit=limit), styles["body"])],
             [Paragraph("<b>改完的好处：</b>" + _field(issue.gain, limit=limit), styles["body"])],
             [Paragraph("风险提示：" + _field(issue.risk_note, limit=limit), styles["footer"])]]
+    if uplift_plan is not None:
+        # 配套显示随第 9 章启用；两计划都为 None 时旧卡片行数和版面完全保留。
+        data.append([Paragraph(_field(_impact_text(issue, uplift_plan), limit=240), styles["footer"])])
     table = Table(data, colWidths=[CONTENT_WIDTH], hAlign="LEFT")
     # 标签、正文和风险提示保持独立段落，长文本按字体度量自然换行。
     commands = [("FONTNAME", (0, 0), (-1, -1), styles["body"].fontName),
@@ -152,7 +199,8 @@ def _keyword_rows(diagnosis: DiagnosisReport, styles: dict) -> list[list[object]
     return rows
 
 
-def _score_comparison(delta: ScoreDelta, styles: dict, *, llm_estimated: bool = False) -> list:
+def _score_comparison(delta: ScoreDelta, styles: dict, *, llm_estimated: bool = False,
+                      explain_zero: bool = False) -> list:
     """只展示上游逐项分数、精确/预估标签与真实负差值，不重新计算评分。"""
     rows = []
     entries = [("总分 / 100", delta.before_total, delta.after_total_estimate)]
@@ -164,26 +212,141 @@ def _score_comparison(delta: ScoreDelta, styles: dict, *, llm_estimated: bool = 
                    (("hard", "硬性 / 40（精确）"), ("semantic", "语义 / 30（精确）"),
                     ("llm", llm_label)))
     for label, before, after in entries:
-        # 三个数值列在单元格内附带同一行项名，保留三列表头的清晰对比。
-        rows.append([Paragraph(f"{label}<br/>{before}", styles["cell"]), after,
+        # 项目名称独立成列，三个数值格各放一个值，避免改前数字掉到第二行。
+        rows.append([Paragraph(label, styles["cell"]), before, after,
                      f"{after - before:+d}" if after != before else "0"])
     content = [Paragraph("<b>分数对比</b>", styles["body"]),
-               _table(["改前", "改后预估", "变化"], rows, [78, 52, 44], styles, empty="—")]
+               _table(["项目", "改前", "改后预估", "变化"], rows, [70, 32, 40, 32], styles, empty="—")]
     if delta.after_total_estimate < delta.before_total:
         # 警告必须真的使用红色字，不能只保留在不可见的审计数据里。
         warning = ParagraphStyle("delta_warning", parent=styles["body"], textColor=colors.HexColor("#B42318"))
         content.append(Paragraph("本次改写后预估分下降，建议只采用部分建议", warning))
     # 逐项解释直接展示既有 notes，不在 PDF 层另造原因或省略 LLM 误差。
-    content.extend(Paragraph(_field(note, limit=1000), styles["meta"]) for note in delta.notes)
+    content.extend(Paragraph(_field(re.sub(r"^(硬性|语义)(?=\s*[+-]?\d)", r"\1变化", note), limit=1000),
+                             styles["meta"]) for note in delta.notes)
     # 仅分数对比子块附带提示，沿用小字样式，不改变上游分数或其他报告内容。
     content.append(Paragraph("语义分对 JD 原句高度敏感：若只是把 JD 措辞搬进简历，分数会虚高，面试时无法自证",
                              styles["footer"]))
+    if explain_zero and delta.delta_parts and all(value == 0 for value in delta.delta_parts.values()):
+        # 只有第 9 章实际存在时才给出章节指引，且不改任何 M6 数字或解释。
+        content.extend([Spacer(1, 2), Paragraph(ZERO_DELTA_NOTE, styles["footer"])])
     return content
+
+
+def _learning_card(gap: LearningGap, styles: dict) -> Table:
+    """将一个缺口及其现成材料排为浅灰底整块，外链可点、本地路径等宽不可点。"""
+    content = [Paragraph(f"<b>{_field(gap.gap)}</b> · 严重度：{SEVERITY_LABELS.get(gap.severity, gap.severity)}", styles["body"]),
+               Paragraph("为什么重要：" + _field(gap.why, limit=120), styles["cell"])]
+    for material in gap.materials:
+        # 标题最多六十字，完整 URL 只进入链接目标，不占据页面列宽。
+        title = material.title if len(material.title) <= 60 else material.title[:59] + "…"
+        label = _field(title, limit=60)
+        if material.kind == "external":
+            label = f'<link href={quoteattr(material.locator)} color="#245CA6"><u>{label}</u></link>'
+        kind = "外部链接 · 需联网" if material.kind == "external" else "本地材料"
+        # 星标只表示库内人工分数；不以相关性、重排结果或评分公式改写 quality。
+        stars = "★" * material.quality + "☆" * (5 - material.quality)
+        content.append(Paragraph(f"{label} · {kind} · {stars} · 核实 {_field(material.verified_at)}", styles["cell"]))
+        content.append(Paragraph(_field(material.note, limit=60), styles["mutedcell"]))
+        if material.kind == "local":
+            # 只有确实出现本地材料时才加载等宽字体，不影响 M7 字体和启动开销。
+            code = ParagraphStyle("material_path", parent=styles["cell"], fontName=pdf_font.get_monospace_font())
+            content.append(Paragraph(_field(material.locator, limit=500), code))
+    if not gap.materials:
+        content.append(Paragraph("暂无对应材料（材料库未收录）", styles["body"]))
+    # 每个段落使用独立表格行，便于真实字体度量换行；整张表由调用方保页。
+    table = Table([[paragraph] for paragraph in content], colWidths=[CONTENT_WIDTH], hAlign="LEFT")
+    table.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#F8FAFC")),
+                              ("BOX", (0, 0), (-1, -1), .4, RULE),
+                              ("LEFTPADDING", (0, 0), (-1, -1), 8), ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+                              ("TOPPADDING", (0, 0), (-1, -1), 4), ("BOTTOMPADDING", (0, 0), (-1, -1), 4)]))
+    return table
+
+
+def _learning_section(story: list, plan: LearningPlan, styles: dict) -> None:
+    """追加固定第 8 章，缺口各自保页，并如实展示材料核实日期范围。"""
+    cards = [_learning_card(gap, styles) for gap in plan.gaps]
+    first = [Paragraph(LEARNING_INTRO, styles["body"])]
+    if cards:
+        first.extend([cards[0], Spacer(1, 8)])
+    else:
+        first.append(Paragraph("本次未列出需要补强的能力缺口", styles["body"]))
+    _section(story, "8 能力补强建议", first, styles)
+    # 不把八个缺口整体捆绑，避免大块溢页；每个缺口本身不跨页。
+    story.extend(KeepTogether([card, Spacer(1, 8)]) for card in cards[1:])
+    dates = sorted({material.verified_at for gap in plan.gaps for material in gap.materials})
+    verified = (dates[0] if dates[0] == dates[-1] else f"{dates[0]} 至 {dates[-1]}") if dates else "未提供"
+    story.append(Paragraph(f"材料评分来自本地人工标注（0-5），链接核实于 {verified}；外部链接需联网", styles["footer"]))
+
+
+class _TableWithConclusion(Flowable):
+    """按行拆长表，始终把剩余表格的最后一行与结论保成同一块。"""
+
+    def __init__(self, table: Table, conclusion: list) -> None:
+        """复用原表的列宽、行样式与重复表头，结论仅接收已排版的段落。"""
+        super().__init__()
+        self.table, self.conclusion = table, conclusion
+        self.group = KeepTogether([table, *conclusion])
+
+    def wrap(self, width: float, height: float) -> tuple[float, float]:
+        """以 KeepTogether 的实际测量高度参与外层章节排版，避免嵌套虚高。"""
+        measured_width, _ = self.group.wrapOn(self.canv, width, height)
+        self.width, self.height = measured_width, self.group._H
+        return self.width, self.height
+
+    def split(self, width: float, height: float) -> list:
+        """最多拆到倒数第二行，剩余行继续与两句结论一起度量和分页。"""
+        self.table.wrapOn(self.canv, width, height)
+        # 即便表格本身放得下，也必须留下一行陪结论，不能把整表先画完。
+        boundary = min(height, sum(self.table._rowHeights[:-1]) + .001)
+        parts = self.table.splitOn(self.canv, width, boundary)
+        if len(parts) == 2:
+            return [parts[0], _TableWithConclusion(parts[1], self.conclusion)]
+        # 表头和末行已不能再拆，交给文档换页后整块绘制。
+        return []
+
+    def draw(self) -> None:
+        """仅在整块实际高度可容纳时绘制，未成功绘制的内容不能静默丢弃。"""
+        content = [self.table, *self.conclusion]
+        frame = Frame(0, 0, self.width, self.height + .1,
+                      leftPadding=0, rightPadding=0, topPadding=0, bottomPadding=0)
+        frame.addFromList(content, self.canv)
+        if content:
+            raise ValueError("涨分策略末行与结论未完整排入页面")
+
+
+def _uplift_section(story: list, plan: UpliftPlan, styles: dict) -> None:
+    """追加固定第 9 章，只展示上游潜力、限制、前提与合计，不产生新分数。"""
+    # 依 PRD 的两句分行，保持所有文字原样，避免中文逗号孤立到下一行。
+    intro_style = ParagraphStyle("uplift_intro", parent=styles["body"], fontSize=8.5, leading=13)
+    content = [Paragraph(UPLIFT_INTRO.replace("，语义分", "，<br/>语义分", 1), intro_style)]
+    if plan.ceiling_note:
+        content.append(_banner(plan.ceiling_note, "#F2F4F7", styles))
+    rows = []
+    for item in plan.items:
+        # blocked 行的非零理论空间也照实显示，但不改变上游的可达合计。
+        values = [item.item, item.current, str(item.potential) if item.potential == 0 else f"+{item.potential}",
+                  ("（改简历拿不到）" if item.blocked else "") + item.action, item.requirement]
+        rows.append([Paragraph(_field(value, limit=500), styles["cell"]) for value in values])
+    table = _table(["分数项", "当前", "最多可加", "该做什么", "前提（必须真实）"], rows,
+                   [32, 33, 17, 46, 46], styles, empty="本次未列出可计算的涨分策略")
+    # 灰底设置到实际数据行，表头仍使用公共样式；长表允许自动分页并重复表头。
+    table.setStyle(TableStyle([("BACKGROUND", (0, index), (-1, index), colors.HexColor("#F2F4F7"))
+                               for index, item in enumerate(plan.items, 1) if item.blocked]))
+    unreachable = "、".join(plan.unreachable) or "上游未列出"
+    conclusion = [Paragraph("靠改简历拿不到的分数：" + _field(unreachable, limit=5000), styles["meta"])]
+    # 合计直接取 M9a 的字段，不把 blocked 空间计入，也不在 PDF 再加总取整。
+    conclusion.append(Paragraph(f"合计：若上面每条前提都成立，最多可加 {plan.achievable_if_true} 分；这只是上限，不作为承诺", styles["body"]))
+    # 仅末行和结论不可拆，其余行沿用表格的自动跨页与表头重复。
+    content.append(_TableWithConclusion(table, conclusion))
+    _section(story, "9 涨分策略", content, styles)
 
 
 def render_review_pdf(rep: RevisionReport, diagnosis: DiagnosisReport, *, job_title: str,
                       resume_name: str = "简历", hard: HardScore | None = None,
-                      generated_at: str | None = None, delta: ScoreDelta | None = None) -> bytes:
+                      generated_at: str | None = None, delta: ScoreDelta | None = None,
+                      learning_plan: LearningPlan | None = None,
+                      uplift_plan: UpliftPlan | None = None) -> bytes:
     """将现成意见按 PRD §七排版为 PDF 字节，不修改输入，不计算分数或补造生成时间。"""
     font = pdf_font.get_cjk_font()
     # 字体不可用直接抛出，不能吞错后输出不可读的报告。
@@ -228,7 +391,7 @@ def render_review_pdf(rep: RevisionReport, diagnosis: DiagnosisReport, *, job_ti
     summary.extend(Paragraph(_field(f"{CATEGORY_LABELS.get(row.category, row.category)}：{row.original_text[:40]}"), styles["body"])
                    for row in ranked[:3])
     _section(story, "结论摘要", summary, styles)
-    cards = [_card(issue, styles) for issue in issues]
+    cards = [_card(issue, styles, uplift_plan=uplift_plan) for issue in issues]
     # 首卡交给 _section 的 KeepTogether，避免两层 KeepTogether 的虚拟高度触发空白换页。
     _section(story, "逐条意见", [cards[0], Spacer(1, 8)] if cards else [Paragraph("—", styles["body"])], styles)
     # 后续每张卡片分别成组，不把整个意见章节捆成一块。
@@ -248,14 +411,20 @@ def render_review_pdf(rep: RevisionReport, diagnosis: DiagnosisReport, *, job_ti
         # 截断只影响展示行数，不修改上游诊断或缺口列表。
         keyword_content.append(Paragraph("（仅显示前 30 个关键词）", styles["meta"]))
     _section(story, "4.5 ATS 关键词覆盖", keyword_content, styles)
+    # 合并后的现状需要展示多个日期，独立 Paragraph 避免再次按单条短字段截断。
+    unchangeable = [[row[0], Paragraph(_field(row[1], limit=500), styles["cell"]), *row[2:]]
+                   for row in _unchangeable_rows(diagnosis, hard)]
     _section(story, "不建议改", [_table(["项", "现状", "为什么改不了", "你能做什么"],
-             _unchangeable_rows(diagnosis, hard), [18, 52, 55, 49], styles,
+             unchangeable, [18, 52, 55, 49], styles,
              empty="本次没有发现改不动的问题")], styles)
     if delta is not None or rep.adaptations or (rep.meta.get("rewrite_requested") and rep.skipped):
         # 此处只展示未来上游给出的前后对照，不执行任何改写，也不生成改后简历。
-        content = _score_comparison(delta, styles, llm_estimated=rep.meta.get("llm_estimated") is True) if delta is not None else []
-        content.append(_table(["意见", "原文", "改后"], [[item.issue_id, item.before, item.after] for item in rep.adaptations],
-                              [24, 75, 75], styles, empty="—"))
+        content = _score_comparison(delta, styles, llm_estimated=rep.meta.get("llm_estimated") is True,
+                                    explain_zero=uplift_plan is not None) if delta is not None else []
+        if rep.adaptations:
+            # 无实际改写时连对照表表头也不画，分数、未采用原因仍照常展示。
+            content.append(_table(["意见", "原文", "改后"], [[item.issue_id, item.before, item.after] for item in rep.adaptations],
+                                  [24, 75, 75], styles, empty="—"))
         if rep.skipped:
             content.append(_table(["未采用意见", "说明"], [[row.get("issue_id", "—"), row.get("reason", "—")] for row in rep.skipped],
                                   [40, 134], styles, empty="—"))
@@ -263,6 +432,12 @@ def render_review_pdf(rep: RevisionReport, diagnosis: DiagnosisReport, *, job_ti
     else:
         # 没有改写时仅显示占位，不制造一个空的智能修改章节。
         story.append(Paragraph("本次未生成智能修改内容。", styles["meta"]))
+
+    # 两个固定章号独立启用；先 8 后 9，逐页页脚继续由原有回调最后绘制。
+    if learning_plan is not None:
+        _learning_section(story, learning_plan, styles)
+    if uplift_plan is not None:
+        _uplift_section(story, uplift_plan, styles)
 
     def draw_footer(canvas, document) -> None:
         """每页在独立预留区域绘制完整免责和审计，文本仍使用 Paragraph/Frame。"""

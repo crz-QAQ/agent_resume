@@ -1,0 +1,15 @@
+python.langchain.com | HTTP 200 | curl exit 0 | https://python.langchain.com/
+huggingface.co | HTTP 200 | curl exit 0 | https://huggingface.co/
+www.promptingguide.ai | HTTP 200 | curl exit 0 | https://www.promptingguide.ai/
+docs.trychroma.com | HTTP 200 | curl exit 0 | https://docs.trychroma.com/
+www.anthropic.com | HTTP 200 | curl exit 0 | https://www.anthropic.com/
+docs.llamaindex.ai | HTTP 200 | curl exit 0 | https://docs.llamaindex.ai/
+learn.microsoft.com | HTTP 200 | curl exit 0 | https://learn.microsoft.com/
+fde-rag | HTTP 200 | curl exit 0 | https://huggingface.co/learn/cookbook/advanced_rag
+fde-evaluation | HTTP 200 | curl exit 0 | https://huggingface.co/learn/cookbook/rag_evaluation
+fde-requirements | HTTP 200 | curl exit 0 | https://learn.microsoft.com/en-us/azure/cloud-adoption-framework/ai/plan
+fde-prompt-engineering | HTTP 200 | curl exit 0 | https://www.promptingguide.ai/introduction/tips
+fde-agent-workflows | HTTP 200 | curl exit 0 | https://www.anthropic.com/research/building-effective-agents
+fde-knowledge-base | HTTP 200 | curl exit 0 | https://docs.dify.ai/en/cloud/use-dify/knowledge/overview
+fde-delivery-acceptance | HTTP 200 | curl exit 0 | https://learn.microsoft.com/en-us/azure/well-architected/ai/test
+fde-vector-search | HTTP 200 | curl exit 0 | https://docs.trychroma.com/docs/overview/getting-started

@@ -1,0 +1,23 @@
+A 契约：通过；旧意见默认 score_impact=0；两模型字段与 PRD 一致
+B 硬性分组：通过；4 项技能合为 3 组；两条 missing_skill 各 5 分
+C 逐项扣分：通过；5 条技能 potential 与 deduct 逐项相等，含最后一条余数
+D 年限学历：通过；years_short/years_unknown/education/education_unknown 全部 blocked、0 分
+E 语义公式：通过；只取 covered=False；round(30/2×0.8)=12
+F 语义上限：通过；全 covered 无语义潜力项；ceiling_note 含 24/30 与 ±1
+G LLM 阻断：通过；30-22=8，blocked；achievable=7+12=19
+H LLM 缺测：通过；llm_estimated=True 不出 LLM 项；notes 明示不可用
+I 空输入：通过；空职责、空技能无除零；items=[]、合计=0、无假全覆盖
+J 排序限额：通过；降序稳定、最多 10 条；合计=15+9×2=33；截断限制仍可查
+K 分数回填：通过；missing 命中 7/12；其余四类、未匹配、blocked 全为 0
+L 回链边界：通过；技能别名/组内原名可回链；Django 不碰 Go；歧义不叠加
+M 纯函数：通过；三次逐字段相等；评分/诊断/策略/意见输入不变；输出独立
+N 原文解释：通过；§3.4 五段解释逐字对照 PRD；ATS 缺词不另算；无保证涨分
+O 非法输入：通过；5 类非法 LLM、缺技能分母、缺职责分母均 ValueError
+P 零模型：通过；全新进程封锁网络及模型导入；实际计算/回填成功，成本 0
+Q M3 白名单：通过；不含 score_impact 的候选正常接受；模型伪报分数/来源均丢弃
+R M3 严格字段：通过；全部提取字段拒绝非字符串；仅 location/risk_note 可缺省
+S 注释文档：通过；uplift_plan.py 17.3%；check_uplift_plan.py 15.4%；schemas_revision.py 41.3%；docstring 全部 100%
+U 缺一项精确值：通过；JD 2 项、缺 1 项：potential=deduct=7；score_impact=7
+V 全缺技能守恒：通过；JD 2 项、缺 2 项：potential=8+7=15；含语义合计=27
+T M3 完整回归：跳过（--offline；不计为通过）
+通过 21/21（离线；真实回归未执行）

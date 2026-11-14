@@ -1,0 +1,15 @@
+结构校验：通过；version=1；材料 12 条
+种子数量：通过；要求 12~18 条
+go-official-doc | HTTP 200 | verified | https://go.dev/doc/ | HTTP 200
+python-official-tutorial | HTTP 200 | verified | https://docs.python.org/3/tutorial/ | HTTP 200
+mysql-official-manual | HTTP 200 | verified | https://dev.mysql.com/doc/refman/8.4/en/ | HTTP 200
+redis-official-doc | HTTP 200 | verified | https://redis.io/docs/latest/ | HTTP 200
+docker-official-start | HTTP 200 | verified | https://docs.docker.com/get-started | HTTP 200
+fastapi-official-tutorial | HTTP 200 | verified | https://fastapi.tiangolo.com/tutorial/ | HTTP 200
+langchain-official-overview | HTTP 200 | verified | https://docs.langchain.com/oss/python/langchain/overview | HTTP 200
+dify-official-doc | HTTP 200 | verified | https://docs.dify.ai/en/home | HTTP 200
+git-official-reference | HTTP 200 | verified | https://git-scm.com/docs | HTTP 200
+kubernetes-official-basics | HTTP 200 | verified | https://kubernetes.io/docs/tutorials/kubernetes-basics/index.html | HTTP 200
+kafka-official-quickstart | HTTP 200 | verified | https://kafka.apache.org/quickstart/ | HTTP 200
+postgresql-official-tutorial | HTTP 200 | verified | https://www.postgresql.org/docs/current/tutorial.html | HTTP 200
+通过 14/14

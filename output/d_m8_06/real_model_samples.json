@@ -1,0 +1,216 @@
+{
+  "evaluation_keyword": {
+    "gap": "建立评测和反馈机制并根据真实业务结果迭代",
+    "why": "岗位「后端工程师」的 JD 要求：建立评测和反馈机制并根据真实业务结果迭代",
+    "severity": "high",
+    "materials": [
+      {
+        "id": "fde-evaluation",
+        "title": "RAG Evaluation - Hugging Face Open-Source AI Cookbook",
+        "kind": "external",
+        "locator": "https://huggingface.co/learn/cookbook/rag_evaluation",
+        "tags": [
+          "Evaluation",
+          "效果评测",
+          "评测集",
+          "指标"
+        ],
+        "level": "进阶",
+        "quality": 5,
+        "verified_at": "2026-11-14",
+        "note": "补齐构建问答评测集、计算准确率和对比RAG改动效果的能力；匹配方式：关键词"
+      }
+    ],
+    "meta": {
+      "matched_by": "keyword",
+      "keywords": [
+        "评测"
+      ]
+    }
+  },
+  "business_keyword": {
+    "gap": "梳理业务流程、关键判断和专业经验并转化为AI场景方案",
+    "why": "岗位「后端工程师」的 JD 要求：梳理业务流程、关键判断和专业经验并转化为AI场景方案",
+    "severity": "high",
+    "materials": [
+      {
+        "id": "fde-requirements",
+        "title": "Plan for AI adoption - Microsoft Cloud Adoption Framework",
+        "kind": "external",
+        "locator": "https://learn.microsoft.com/en-us/azure/cloud-adoption-framework/ai/plan",
+        "tags": [
+          "Requirements analysis",
+          "需求梳理与拆解",
+          "需求分析",
+          "业务拆解"
+        ],
+        "level": "入门",
+        "quality": 5,
+        "verified_at": "2026-11-14",
+        "note": "补齐从业务问题识别需求、拆成用例、排优先级并定义成功指标的能力；匹配方式：关键词"
+      }
+    ],
+    "meta": {
+      "matched_by": "keyword",
+      "keywords": [
+        "业务"
+      ]
+    }
+  },
+  "honest_none": {
+    "gap": "推动方案从演示走向实际使用并解决使用中的问题",
+    "why": "岗位「后端工程师」的 JD 要求：推动方案从演示走向实际使用并解决使用中的问题",
+    "severity": "high",
+    "materials": [],
+    "meta": {
+      "matched_by": "none",
+      "top1_id": "fde-requirements",
+      "top1_cos": 0.48112777528029943,
+      "top2_cos": 0.46708185905741645,
+      "margin": 0.014045916222882981,
+      "min_cos": 0.45,
+      "min_margin": 0.03,
+      "model": "BAAI/bge-small-zh-v1.5"
+    }
+  },
+  "cosine_pairs": {
+    "related": 0.6169118028958557,
+    "unrelated": 0.37438066004609366
+  },
+  "all_methods": {
+    "gaps": [
+      {
+        "gap": "Go",
+        "why": "岗位「后端工程师」的 JD 要求：Go",
+        "severity": "high",
+        "materials": [
+          {
+            "id": "go-official-doc",
+            "title": "Documentation - The Go Programming Language",
+            "kind": "external",
+            "locator": "https://go.dev/doc/",
+            "tags": [
+              "Go",
+              "Golang"
+            ],
+            "level": "入门",
+            "quality": 5,
+            "verified_at": "2026-11-13",
+            "note": "Go 官方文档，含入门教程、语言说明与标准库入口"
+          }
+        ],
+        "meta": {
+          "matched_by": "family"
+        }
+      },
+      {
+        "gap": "建立评测和反馈机制并根据真实业务结果迭代",
+        "why": "岗位「后端工程师」的 JD 要求：建立评测和反馈机制并根据真实业务结果迭代",
+        "severity": "high",
+        "materials": [
+          {
+            "id": "fde-evaluation",
+            "title": "RAG Evaluation - Hugging Face Open-Source AI Cookbook",
+            "kind": "external",
+            "locator": "https://huggingface.co/learn/cookbook/rag_evaluation",
+            "tags": [
+              "Evaluation",
+              "效果评测",
+              "评测集",
+              "指标"
+            ],
+            "level": "进阶",
+            "quality": 5,
+            "verified_at": "2026-11-14",
+            "note": "补齐构建问答评测集、计算准确率和对比RAG改动效果的能力；匹配方式：关键词"
+          }
+        ],
+        "meta": {
+          "matched_by": "keyword",
+          "keywords": [
+            "评测"
+          ]
+        }
+      },
+      {
+        "gap": "把客户想解决的问题整理清楚，再列出优先顺序和成功标准",
+        "why": "岗位「后端工程师」的 JD 要求：把客户想解决的问题整理清楚，再列出优先顺序和成功标准",
+        "severity": "high",
+        "materials": [
+          {
+            "id": "fde-requirements",
+            "title": "Plan for AI adoption - Microsoft Cloud Adoption Framework",
+            "kind": "external",
+            "locator": "https://learn.microsoft.com/en-us/azure/cloud-adoption-framework/ai/plan",
+            "tags": [
+              "Requirements analysis",
+              "需求梳理与拆解",
+              "需求分析",
+              "业务拆解"
+            ],
+            "level": "入门",
+            "quality": 5,
+            "verified_at": "2026-11-14",
+            "note": "补齐从业务问题识别需求、拆成用例、排优先级并定义成功指标的能力"
+          }
+        ],
+        "meta": {
+          "matched_by": "semantic",
+          "top1_id": "fde-requirements",
+          "top1_cos": 0.4847163927478959,
+          "top2_cos": 0.4472826855132934,
+          "margin": 0.03743370723460249,
+          "min_cos": 0.45,
+          "min_margin": 0.03,
+          "model": "BAAI/bge-small-zh-v1.5"
+        }
+      },
+      {
+        "gap": "推动方案从演示走向实际使用并解决使用中的问题",
+        "why": "岗位「后端工程师」的 JD 要求：推动方案从演示走向实际使用并解决使用中的问题",
+        "severity": "high",
+        "materials": [],
+        "meta": {
+          "matched_by": "none",
+          "top1_id": "fde-requirements",
+          "top1_cos": 0.48112777528029943,
+          "top2_cos": 0.46708185905741645,
+          "margin": 0.014045916222882981,
+          "min_cos": 0.45,
+          "min_margin": 0.03,
+          "model": "BAAI/bge-small-zh-v1.5"
+        }
+      }
+    ],
+    "unmatched": [
+      "推动方案从演示走向实际使用并解决使用中的问题"
+    ],
+    "meta": {
+      "materials_version": "1",
+      "elapsed_ms": null,
+      "cost_yuan": 0,
+      "model_calls": 2,
+      "local_model_calls": {
+        "embedding": 2,
+        "reranker": 0
+      },
+      "has_external": true,
+      "semantic_fallback": "used",
+      "semantic_attempts": 2,
+      "semantic_errors": {},
+      "unmatched_reasons": {
+        "推动方案从演示走向实际使用并解决使用中的问题": "材料库暂无对应条目"
+      },
+      "matched_by": {
+        "Go": "family",
+        "建立评测和反馈机制并根据真实业务结果迭代": "keyword",
+        "把客户想解决的问题整理清楚，再列出优先顺序和成功标准": "semantic",
+        "推动方案从演示走向实际使用并解决使用中的问题": "none"
+      },
+      "gap_count_before_limit": 4,
+      "truncated_gaps": 0,
+      "materials_total": 3,
+      "omitted_by_material_limit": 0
+    }
+  }
+}

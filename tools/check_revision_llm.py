@@ -363,8 +363,9 @@ async def _check_d(index: int) -> str:
         report, fake = await _fake({"issues": [dict(baseline, why=why)]})
         _expect(len(report.issues) == 1 and not report.rejected_issues, "D1 有效理由被丢弃")
         _expect(report.issues[0].why == "JD 要求 Go…", "D1 原有理由未完整保留")
-        # 除 why 与代码编号，全部意见字段都要与原输入保持一致。
-        _expect(report.issues[0].model_dump(exclude={"id", "why"}) == {k: v for k, v in baseline.items() if k != "why"}, "D1 修改了其他意见字段")
+        # 除 why 与代码编号，模型字段逐字保留；新增派生字段必须为代码默认的零。
+        expected = {**{k: v for k, v in baseline.items() if k != "why"}, "score_impact": 0}
+        _expect(report.issues[0].model_dump(exclude={"id", "why"}) == expected, "D1 修改了其他意见字段或派生分数")
         for before, after in (
                 ("JD 要求 Go；岗位画像（推测）；原句缺证据", "JD 要求 Go；原句缺证据"),
                 ("岗位画像（推测）；JD 要求 Go", "JD 要求 Go"),

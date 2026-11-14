@@ -48,7 +48,8 @@ _FINDING_CATEGORY = {"no_quantify": "weak_evidence", "weak_verb": "weak_evidence
                      "timeline_overlap": "inconsistent", "timeline_invalid": "inconsistent",
                      "open_ended": "inconsistent", "relative_time": "inconsistent",
                      "missing_section": "missing", "skill_flat": "weak_evidence"}
-_ISSUE_FIELDS = tuple(name for name in ReviewIssue.model_fields if name != "id")
+# score_impact 与 id 一样由代码回填，不能要求模型输出或接收模型自报值。
+_ISSUE_FIELDS = tuple(n for n in ReviewIssue.model_fields if n not in ("id", "score_impact"))
 # D-M3-02：仅这两项可缺省；不能顺手为证据或核心内容编默认值。
 _OPTIONAL_DEFAULTS = {"location": "—", "risk_note": "涉及数字、规模、成果的建议，必须是你真实的数据"}
 _CODE = re.compile(r"```|</?[A-Za-z][^>]*>|javascript:|^\s*(?:def |class |import |from \S+ import )", re.I | re.M)

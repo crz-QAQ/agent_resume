@@ -1,0 +1,171 @@
+{
+  "version": "1",
+  "updated_at": "2026-11-13",
+  "source_policy": "仅收用户指定的 12 类官方站点文档；标题和 URL 取自已确认的官方页面，不由运行时模型生成。",
+  "quality_policy": {
+    "status": "curated",
+    "scoring_basis": "按本轮用户指令及 D-M8-01 给定的人工评分口径逐条静态整理；运行时不调用模型评分。",
+    "rubric_source": "docs/实施记录/简历修改/已知缺陷.md（D-M8-01）及本轮用户指令",
+    "runtime_scoring": false,
+    "default_score": null,
+    "distribution": {
+      "4": 2,
+      "5": 10
+    }
+  },
+  "verification_policy": "verified_at 依据本次实际 curl HTTP 200；实时检查失败时仍必须标 unverified，不以历史日期代替。",
+  "evidence": "output/m8a_fixes/materials_probe.json",
+  "entries": [
+    {
+      "id": "go-official-doc",
+      "source_kind": "official_documentation",
+      "source_url": "https://go.dev/doc/",
+      "http_status": 200,
+      "verification_status": "verified",
+      "checked_at": "2026-11-13T07:02:04.385509+00:00",
+      "verified_at": "2026-11-13",
+      "quality": 5,
+      "quality_status": "curated",
+      "quality_reason": "官方文档包含入门教程、语言说明与标准库入口，可按教程上手。"
+    },
+    {
+      "id": "python-official-tutorial",
+      "source_kind": "official_documentation",
+      "source_url": "https://docs.python.org/3/tutorial/",
+      "http_status": 200,
+      "verification_status": "verified",
+      "checked_at": "2026-11-13T07:02:04.385509+00:00",
+      "verified_at": "2026-11-13",
+      "quality": 5,
+      "quality_status": "curated",
+      "quality_reason": "官方教程按语法、模块、异常和标准库逐步展开，内容系统完整。"
+    },
+    {
+      "id": "mysql-official-manual",
+      "source_kind": "official_documentation",
+      "source_url": "https://dev.mysql.com/doc/refman/8.4/en/",
+      "http_status": 200,
+      "verification_status": "verified",
+      "checked_at": "2026-11-13T07:02:04.385509+00:00",
+      "verified_at": "2026-11-13",
+      "quality": 5,
+      "quality_status": "curated",
+      "quality_reason": "依 D-M8-01 明确评分为 5；官方手册含教程及 SQL、索引、事务完整说明。",
+      "access_note": "MySQL 官方手册，含 SQL、索引与事务；403 为该站反爬，浏览器可正常访问",
+      "browser_access_basis": "用户在 D-M8-01 中记录浏览器正常访问；本次 curl 状态单独如实记录。"
+    },
+    {
+      "id": "redis-official-doc",
+      "source_kind": "official_documentation",
+      "source_url": "https://redis.io/docs/latest/",
+      "http_status": 200,
+      "verification_status": "verified",
+      "checked_at": "2026-11-13T07:02:04.385509+00:00",
+      "verified_at": "2026-11-13",
+      "quality": 5,
+      "quality_status": "curated",
+      "quality_reason": "官方文档覆盖入门、数据类型、客户端开发与运维，学习路径完整。"
+    },
+    {
+      "id": "docker-official-start",
+      "source_kind": "official_documentation",
+      "source_url": "https://docs.docker.com/get-started",
+      "http_status": 200,
+      "verification_status": "verified",
+      "checked_at": "2026-11-13T07:02:04.385509+00:00",
+      "verified_at": "2026-11-13",
+      "quality": 5,
+      "quality_status": "curated",
+      "quality_reason": "官方入门教程覆盖运行容器、构建镜像与应用实践，可逐步上手。"
+    },
+    {
+      "id": "fastapi-official-tutorial",
+      "source_kind": "official_documentation",
+      "source_url": "https://fastapi.tiangolo.com/tutorial/",
+      "http_status": 200,
+      "verification_status": "verified",
+      "checked_at": "2026-11-13T07:02:04.385509+00:00",
+      "verified_at": "2026-11-13",
+      "quality": 5,
+      "quality_status": "curated",
+      "quality_reason": "官方系统教程逐步讲解请求、响应和依赖注入，并提供可运行示例。"
+    },
+    {
+      "id": "langchain-official-overview",
+      "source_kind": "official_documentation",
+      "source_url": "https://docs.langchain.com/oss/python/langchain/overview",
+      "http_status": 200,
+      "verification_status": "verified",
+      "checked_at": "2026-11-13T07:02:04.385509+00:00",
+      "verified_at": "2026-11-13",
+      "quality": 4,
+      "quality_status": "curated",
+      "quality_reason": "该条指向官方概览及组件/API 导航，偏查阅入口，按 rubric 给 4。"
+    },
+    {
+      "id": "dify-official-doc",
+      "source_kind": "official_documentation",
+      "source_url": "https://docs.dify.ai/en/home",
+      "http_status": 200,
+      "verification_status": "verified",
+      "checked_at": "2026-11-13T07:02:04.385509+00:00",
+      "verified_at": "2026-11-13",
+      "quality": 5,
+      "quality_status": "curated",
+      "quality_reason": "官方文档从首个应用延伸至工作流、知识库与发布，支持系统上手。"
+    },
+    {
+      "id": "git-official-reference",
+      "source_kind": "official_documentation",
+      "source_url": "https://git-scm.com/docs",
+      "http_status": 200,
+      "verification_status": "verified",
+      "checked_at": "2026-11-13T07:02:04.385509+00:00",
+      "verified_at": "2026-11-13",
+      "quality": 4,
+      "quality_status": "curated",
+      "quality_reason": "该条为官方命令参考和参数索引，偏查阅，按 rubric 给 4。"
+    },
+    {
+      "id": "kubernetes-official-basics",
+      "source_kind": "official_documentation",
+      "source_url": "https://kubernetes.io/docs/tutorials/kubernetes-basics/index.html",
+      "http_status": 200,
+      "verification_status": "verified",
+      "checked_at": "2026-11-13T07:02:04.385509+00:00",
+      "verified_at": "2026-11-13",
+      "quality": 5,
+      "quality_status": "curated",
+      "quality_reason": "官方基础教程按创建集群、部署、访问、扩缩容与更新逐步实践。"
+    },
+    {
+      "id": "kafka-official-quickstart",
+      "source_kind": "official_documentation",
+      "source_url": "https://kafka.apache.org/quickstart/",
+      "http_status": 200,
+      "verification_status": "verified",
+      "checked_at": "2026-11-13T07:02:04.385509+00:00",
+      "verified_at": "2026-11-13",
+      "quality": 5,
+      "quality_status": "curated",
+      "quality_reason": "官方快速入门从启动集群到主题创建、生产与消费，覆盖上手流程。"
+    },
+    {
+      "id": "postgresql-official-tutorial",
+      "source_kind": "official_documentation",
+      "source_url": "https://www.postgresql.org/docs/current/tutorial.html",
+      "http_status": 200,
+      "verification_status": "verified",
+      "checked_at": "2026-11-13T07:02:04.385509+00:00",
+      "verified_at": "2026-11-13",
+      "quality": 5,
+      "quality_status": "curated",
+      "quality_reason": "官方系统教程从建表、SQL 到连接与事务逐步展开。"
+    }
+  ],
+  "quality_rubric": "5=官方文档且系统完整（可零基础学到上手）；4=官方文档但偏 API 索引，适合查阅；3=权威第三方教程",
+  "verification_history_evidence": [
+    "output/m8a/materials_probe.json",
+    "output/m8a_fixes/materials_probe.json"
+  ]
+}

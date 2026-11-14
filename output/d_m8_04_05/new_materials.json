@@ -1,0 +1,124 @@
+[
+  {
+    "id": "fde-rag",
+    "title": "Advanced RAG on Hugging Face documentation using LangChain",
+    "kind": "external",
+    "locator": "https://huggingface.co/learn/cookbook/advanced_rag",
+    "tags": [
+      "RAG",
+      "检索增强",
+      "向量检索"
+    ],
+    "level": "进阶",
+    "quality": 5,
+    "verified_at": "2026-11-14",
+    "note": "补齐文档切分、向量检索、重排与检索增强问答的端到端实践能力"
+  },
+  {
+    "id": "fde-evaluation",
+    "title": "RAG Evaluation - Hugging Face Open-Source AI Cookbook",
+    "kind": "external",
+    "locator": "https://huggingface.co/learn/cookbook/rag_evaluation",
+    "tags": [
+      "Evaluation",
+      "效果评测",
+      "评测集",
+      "指标"
+    ],
+    "level": "进阶",
+    "quality": 5,
+    "verified_at": "2026-11-14",
+    "note": "补齐构建问答评测集、计算准确率和对比RAG改动效果的能力"
+  },
+  {
+    "id": "fde-requirements",
+    "title": "Plan for AI adoption - Microsoft Cloud Adoption Framework",
+    "kind": "external",
+    "locator": "https://learn.microsoft.com/en-us/azure/cloud-adoption-framework/ai/plan",
+    "tags": [
+      "Requirements analysis",
+      "需求梳理与拆解",
+      "需求分析",
+      "业务拆解"
+    ],
+    "level": "入门",
+    "quality": 5,
+    "verified_at": "2026-11-14",
+    "note": "补齐从业务问题识别需求、拆成用例、排优先级并定义成功指标的能力"
+  },
+  {
+    "id": "fde-prompt-engineering",
+    "title": "General Tips for Designing Prompts - Prompt Engineering Guide",
+    "kind": "external",
+    "locator": "https://www.promptingguide.ai/introduction/tips",
+    "tags": [
+      "Prompt engineering",
+      "Prompt 工程",
+      "提示词"
+    ],
+    "level": "入门",
+    "quality": 3,
+    "verified_at": "2026-11-14",
+    "note": "DAIR.AI权威第三方指南，补齐提示词的任务拆分、明确指令与迭代设计能力"
+  },
+  {
+    "id": "fde-agent-workflows",
+    "title": "Building effective agents - Anthropic",
+    "kind": "external",
+    "locator": "https://www.anthropic.com/research/building-effective-agents",
+    "tags": [
+      "Agent",
+      "工作流",
+      "Workflow"
+    ],
+    "level": "进阶",
+    "quality": 4,
+    "verified_at": "2026-11-14",
+    "note": "官方架构模式参考，补齐工作流与Agent选型、任务编排和检查点设计能力"
+  },
+  {
+    "id": "fde-knowledge-base",
+    "title": "Knowledge - Dify Docs",
+    "kind": "external",
+    "locator": "https://docs.dify.ai/en/cloud/use-dify/knowledge/overview",
+    "tags": [
+      "Knowledge base",
+      "知识库",
+      "文档问答"
+    ],
+    "level": "入门",
+    "quality": 4,
+    "verified_at": "2026-11-14",
+    "note": "官方知识库类型与组件入口，补齐企业内容组织和文档问答方案选择能力"
+  },
+  {
+    "id": "fde-delivery-acceptance",
+    "title": "Test and evaluate AI workloads on Azure - Microsoft Learn",
+    "kind": "external",
+    "locator": "https://learn.microsoft.com/en-us/azure/well-architected/ai/test",
+    "tags": [
+      "Delivery",
+      "交付",
+      "验收"
+    ],
+    "level": "进阶",
+    "quality": 5,
+    "verified_at": "2026-11-14",
+    "note": "补齐AI交付前的端到端测试、质量门槛和基于测试结果作出上线验收决策的能力"
+  },
+  {
+    "id": "fde-vector-search",
+    "title": "Getting Started - Chroma Docs",
+    "kind": "external",
+    "locator": "https://docs.trychroma.com/docs/overview/getting-started",
+    "tags": [
+      "Vector search",
+      "向量检索",
+      "文档检索"
+    ],
+    "level": "入门",
+    "quality": 5,
+    "verified_at": "2026-11-14",
+    "note": "补齐创建向量集合、写入文档与执行相似检索的上手能力"
+  }
+]

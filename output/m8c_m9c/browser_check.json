@@ -1,0 +1,29 @@
+{
+  "source_response": "output/m8c_m9c/review_payload.json",
+  "replay": true,
+  "model_calls_for_screenshots": 0,
+  "defaults_open": true,
+  "links": [
+    {
+      "href": "https://fastapi.tiangolo.com/tutorial/",
+      "target": "_blank",
+      "rel": "noopener"
+    }
+  ],
+  "blocked_colors": [
+    "rgb(120, 134, 149)"
+  ],
+  "mobile_width": 390,
+  "mobile_overflow": false,
+  "page_errors": [],
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/ui"
+    },
+    {
+      "method": "POST",
+      "path": "/revise/review"
+    }
+  ]
+}

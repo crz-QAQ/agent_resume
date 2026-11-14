@@ -396,8 +396,8 @@ def _public_revise(outcome: revise_pipeline.ReviseOutcome, value):
     def redact(item):
         """递归处理分析证据，保留服务器标识和数字字段原值。"""
         if isinstance(item, dict):
-            # ID 必须原样保留；显示脱敏不参与勾选项回链或缓存路径构造。
-            return {key: content if key in {"id", "issue_id", "review_id", "auto_applicable_ids", "review_pdf_url", "resume_url"}
+            # ID 与材料库已校验的 locator 原样保留；脱敏不能破坏回链或改变官方链接。
+            return {key: content if key in {"id", "issue_id", "review_id", "auto_applicable_ids", "review_pdf_url", "resume_url", "locator"}
                     else redact(content) for key, content in item.items()}
         if isinstance(item, list):
             return [redact(content) for content in item]
@@ -456,6 +456,8 @@ async def revise_review(file: UploadFile = File(...), job_title: str = Form(""),
         # 显式选择响应字段，禁止自动序列化携带原文的内部 Outcome。
         return _public_revise(outcome, {"review_id": identifier, "report": public_report, "profile": outcome.profile.model_dump(),
                 "mode": outcome.profile.source, "stats": _revise_stats(outcome),
+                "learning_plan": outcome.learning_plan.model_dump() if outcome.learning_plan is not None else None,
+                "uplift_plan": outcome.uplift_plan.model_dump() if outcome.uplift_plan is not None else None,
                 "delta": outcome.delta.model_dump() if outcome.delta else None})
     except HTTPException:
         raise
@@ -477,7 +479,7 @@ async def revise_review(file: UploadFile = File(...), job_title: str = Form(""),
 
 @revise_routes.post("/revise/apply", tags=["修改意见"])
 async def revise_apply(data: ReviseApplyRequest) -> dict:
-    """以缓存原件应用勾选项，只有两份最终文件均保存成功后才返回下载链接。"""
+    """尽力应用缓存意见，始终保存报告，仅实际改写成功时提供修改版。"""
     # 必须先清理过期会话，不能因为内存仍有字节就允许过期报告继续应用。
     _expire_reviews()
     if not report_store._valid(data.review_id) or data.review_id not in _review_sessions:
@@ -487,24 +489,27 @@ async def revise_apply(data: ReviseApplyRequest) -> dict:
     _, original, raw, filename = _review_sessions[data.review_id]
     # 只允许当前报告的意见编号，不能引用其它报告或提交自造条目。
     known = {issue.id for issue in original.report.issues}
-    if data.selected_ids is not None and set(data.selected_ids) - known:
+    if data.selected_ids is not None and not known.intersection(data.selected_ids):
         raise HTTPException(422, "勾选条目无效，请重新选择")
     try:
         # 每次操作使用深拷贝，并行或重复申请都从同一原件出发，不覆盖原始分析。
         outcome = original.model_copy(deep=True)
         result = await revise_pipeline.run_apply(outcome=outcome, raw=raw, filename=filename,
                                                  selected_ids=data.selected_ids)
-        if not result.applied:
-            raise HTTPException(422, "没有可自动修改的条目，请按未采用原因核实真实经历")
-        # 两份文件各有独立产物 ID，使 load_artifact(id) 的返回始终唯一。
-        review_id, resume_id = uuid4().hex, uuid4().hex
+        # 零改写也保存完整意见及未采用原因，报告本身就是可下载的产物。
+        review_id = uuid4().hex
         await run_in_threadpool(report_store.save_artifact, review_id, "review", result.review_pdf,
                                filename=f"修改意见_{Path(filename).stem}.pdf")
-        await run_in_threadpool(report_store.save_artifact, resume_id, "resume", result.resume_bytes,
-                               filename=f"{Path(filename).stem}_修改版.{result.resume_ext}")
+        resume_url, resume_ext = None, None
+        if result.applied:
+            # 两份文件各有独立产物 ID；未改写时不把原件冒充修改版保存。
+            resume_id = uuid4().hex
+            await run_in_threadpool(report_store.save_artifact, resume_id, "resume", result.resume_bytes,
+                                   filename=f"{Path(filename).stem}_修改版.{result.resume_ext}")
+            resume_url, resume_ext = f"/revise/file/{resume_id}/resume", result.resume_ext
         # 响应仅含必要的逐条证据与 delta，不返回 Outcome、原始文件或解析结构。
         return _public_revise(outcome, {"review_pdf_url": f"/revise/file/{review_id}/review",
-                "resume_url": f"/revise/file/{resume_id}/resume", "resume_ext": result.resume_ext,
+                "resume_url": resume_url, "resume_ext": resume_ext,
                 "applied": result.applied, "skipped": result.skipped,
                 "delta": outcome.delta.model_dump() if outcome.delta else None})
     except HTTPException:

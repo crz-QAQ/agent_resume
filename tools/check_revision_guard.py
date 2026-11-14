@@ -1,6 +1,6 @@
 """离线检查 M0 的八组契约与护栏，失败打印具体条目、期望和实际。
 
-直接运行即可；只导入纯模型和纯函数，不调用模型、不联网、不读取 .env。
+直接运行即可；只导入纯模型和纯函数，隔离执行 M3 白名单声明，不调用模型、不联网、不读取 .env。
 """
 
 import ast
@@ -9,6 +9,7 @@ from pathlib import Path
 import sys
 from time import perf_counter
 import tokenize
+from types import ModuleType
 
 # 从业务模块导入前计时，包含 Pydantic 模型加载和全部检查。
 STARTED = perf_counter()
@@ -97,12 +98,33 @@ def _documentation() -> str:
     return "；".join(summaries)
 
 
+def _revision_fields_module() -> ModuleType:
+    """隔离执行真实 M3 白名单声明，返回模块；声明缺失、重复或执行失败时抛异常。"""
+    # M0 要求离线且含导入耗时小于一秒，不能为一个字段声明加载整条模型调用链。
+    path = PROJECT_ROOT / "app/revision_llm.py"
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    statements = [node for node in tree.body if isinstance(node, ast.Assign)
+                  and any(isinstance(target, ast.Name) and target.id == "_ISSUE_FIELDS" for target in node.targets)]
+    # 执行当前源码里的实际表达式，不在测试里复制一份正确白名单掩盖产品回归。
+    _equal("M3 白名单声明唯一", 1, len(statements))
+    revision_llm = ModuleType("app.revision_llm")
+    revision_llm.ReviewIssue = ReviewIssue
+    exec(compile(ast.Module(body=statements, type_ignores=[]), str(path), "exec"), vars(revision_llm))
+    return revision_llm
+
+
+def _assert_derived_fields_excluded(revision_llm: ModuleType) -> None:
+    """检查模块白名单；参数为待测模块，无返回，派生字段混入时抛 AssertionError。"""
+    # 正例与临时假模块负例共用这一条断言，保证检测逻辑真的能失败。
+    _equal("score_impact 不得进入 M3 字段白名单", False, "score_impact" in revision_llm._ISSUE_FIELDS)
+
+
 def _check_contract() -> str:
     """核对①；无参数，返回模型及规范摘要，断言或契约失败会抛异常。"""
     # 期望字段独立逐字列自 PRD §六，不从待测模型反向生成期望。
     expected = {
         ReviewIssue: dict(id=str, category=str, severity=str, location=str, original_text=str,
-                          suggested_text=str, why=str, gain=str, jd_evidence=str, risk_note=str),
+                          suggested_text=str, why=str, gain=str, jd_evidence=str, risk_note=str, score_impact=int),
         JobProfile: dict(title=str, source=str, confirmed=bool, must_have=list[str],
                          responsibilities=list[str], note=str),
         AdaptedText: dict(issue_id=str, location=str, before=str, after=str,
@@ -116,11 +138,28 @@ def _check_contract() -> str:
         _equal(f"{model.__name__}/字段", list(fields), list(model.model_fields))
         _equal(f"{model.__name__}/类型", fields,
                {name: field.annotation for name, field in model.model_fields.items()})
-        _equal(f"{model.__name__}/必填", True, all(field.is_required() for field in model.model_fields.values()))
+        # 只有代码派生字段可缺省，原有四模型的必填字段集合逐项保持严格检查。
+        derived = {"score_impact"} if model is ReviewIssue else set()
+        _equal(f"{model.__name__}/必填", set(fields) - derived,
+               {name for name, field in model.model_fields.items() if field.is_required()})
         _equal(f"{model.__name__}/中文描述", True,
                all(field.description and any("\u3400" <= char <= "\u9fff" for char in field.description)
-                   for field in model.model_fields.values()))
+                   for name, field in model.model_fields.items() if name not in derived))
     issue, adapted = _issue(), _adapted()
+    # 派生字段不参与模型输出描述；旧意见不提供该字段时必须实际得到整数零。
+    _equal("score_impact 默认值", 0, ReviewIssue.model_fields["score_impact"].default)
+    _equal("旧意见默认 score_impact", (int, 0), (type(issue.score_impact), issue.score_impact))
+    revision_llm = _revision_fields_module()
+    _assert_derived_fields_excluded(revision_llm)
+    # 临时假模块只污染白名单，不改真实源码或真实模块；同一个检查必须将其拒绝。
+    fake_revision_llm = ModuleType("app.revision_llm_bad_fields")
+    fake_revision_llm._ISSUE_FIELDS = (*revision_llm._ISSUE_FIELDS, "score_impact")
+    try:
+        _assert_derived_fields_excluded(fake_revision_llm)
+    except AssertionError as exc:
+        _equal("假模块触发指定白名单断言", True, "score_impact 不得进入 M3 字段白名单" in str(exc))
+    else:
+        raise AssertionError("假模块混入 score_impact 后未触发白名单断言")
     # 四个真实模型一起实例化；分数字段同时核对允许 None 与整数两种情况。
     # 嵌套对象使用真实实例，防止字段误写为无类型字典仍然通过检查。
     profile = JobProfile(title="后端开发", source="user_jd", confirmed=True,
@@ -139,7 +178,7 @@ def _check_contract() -> str:
     # 可空不等于可以省略，PRD 中两个可空评分仍是必需字段。
     _equal("分数字段不能省略", True,
            _rejects(RevisionReport, {key: value for key, value in report.model_dump().items() if key != "score_before"}))
-    return "4 个模型字段/类型/None 全部一致；" + _documentation()
+    return "4 个模型字段/类型/None 全部一致；score_impact 默认 0；M3 派生白名单正例通过、假模块负例被拦；" + _documentation()
 
 
 def _check_original() -> str:

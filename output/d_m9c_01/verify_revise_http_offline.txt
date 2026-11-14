@@ -1,0 +1,45 @@
+M7/M8c/M9c TestClient 验收（离线受控模型；隔离 reports 缓存，不改历史样张）
+  可自动采用 2 条；未采用原因 {"需本人补充经历，系统不代写": 2, "需本人按真实月份/学历补全": 1}
+A1 真实JD意见：通过；意见 5 条；成本 0.00000000 元；新增改前LLM 0.00000000 元
+A2 双文件下载：通过；意见 PDF 185139 字节；修改版 DOCX 37639 字节
+A3 Word结构/未选段落：通过
+A4 PDF文字：通过
+B1 未确认拒绝：通过
+B2 零模型画像：通过
+B3 确认画像分析：通过；source=inferred；成本 0.00000000 元；新增改前LLM 0.00000000 元
+B4 画像PDF横幅：通过
+C1 扫描件422：通过
+C2 短JD422：通过
+C3 11MB返回413：通过
+C4 伪造ID404：通过
+C5 目录穿越404：通过
+C6 输入均空422：通过
+C7 非法kind404：通过
+C8 只有JD：通过
+C9 模型503：通过
+C10 内部故障500：通过
+C11 协议错误无400：通过
+E1 单条勾选：通过
+E2 空选择422：通过
+F 修改统计：通过
+G1 旧GET接口：通过；/、/docs、/match/stats、/ui 均200
+G2 旧评分真实回归：通过；POST /match/score 200；成本 0.00000000 元
+G4 同输入分数一致：通过；/match/score total=78；/revise/review score_before=78；差值=0
+G5 LLM失败降级：通过；异常/failed均HTTP200；llm_estimated=true；LLM=0；PDF明确提示；改后LLM不重跑
+I1 学习/涨分计划响应：通过；learning/uplift 均非空；正影响意见存在；材料链接 1 条均来自白名单；成本 0.00000000 元
+I2 分数影响一致性：通过；FastAPI：score_impact = potential = deduct = 4；未重算或估造分数
+I3 材料库失败降级：通过；缺失/坏 JSON 均 HTTP200；learning_plan=null、learning_unavailable=true；uplift 保留，不泄漏本机路径
+J1 全skipped报告可下载：通过；构造6条missing：默认/显式全选均200；applied=[]、skipped=6逐条带原因；报告GET200含第8/9章；resume_url/ext=null；零意见也200
+J2 跨段落原句：通过；CRLF原句→连续2段分别替换；applied=1；双下载200；段落/表格/section守恒，其余段落逐字/XML相同
+J3 自动改写/勾选不回归：通过；默认/有效+无效混选：applied≥1、双下载200；显式[]及全无效ID仍422且文案不变
+G3 页面与JS：通过；评分原脚本/表单未改；JS语法通过；计划/LLM文案通过；有→无→有→无简历：灰显、移除href、报告可用、5/1说明均通过
+D1 仅最终文件落盘：通过；最终文件 27 份；非 PDF/DOCX 文件 0
+D2 响应隐私：通过
+D3 日志隐私：通过
+H1 存储/会话TTL：通过
+H2 注释与兼容：通过；report_store.py 15.8%；revise_pipeline.py 16.1%；api.py 15.2%；verify_revise_http.py 15.1%；docstring100%；旧存储三函数逐字未改
+H3 语义线程池：通过
+H4 总成本上限：通过
+下载实际字节数：意见PDF=185139；修改版DOCX=37639
+总成本 0.00000000 元；受控模型响应 14 次；耗时 29.463s
+通过 40/40

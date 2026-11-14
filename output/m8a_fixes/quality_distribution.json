@@ -1,0 +1,73 @@
+{
+  "quality_rubric": "5=官方文档且系统完整（可零基础学到上手）；4=官方文档但偏 API 索引，适合查阅；3=权威第三方教程",
+  "count": 12,
+  "distribution": {
+    "1": 0,
+    "2": 0,
+    "3": 0,
+    "4": 2,
+    "5": 10
+  },
+  "entries": [
+    {
+      "id": "go-official-doc",
+      "quality": 5,
+      "verified_at": "2026-11-13"
+    },
+    {
+      "id": "python-official-tutorial",
+      "quality": 5,
+      "verified_at": "2026-11-13"
+    },
+    {
+      "id": "mysql-official-manual",
+      "quality": 5,
+      "verified_at": "2026-11-13"
+    },
+    {
+      "id": "redis-official-doc",
+      "quality": 5,
+      "verified_at": "2026-11-13"
+    },
+    {
+      "id": "docker-official-start",
+      "quality": 5,
+      "verified_at": "2026-11-13"
+    },
+    {
+      "id": "fastapi-official-tutorial",
+      "quality": 5,
+      "verified_at": "2026-11-13"
+    },
+    {
+      "id": "langchain-official-overview",
+      "quality": 4,
+      "verified_at": "2026-11-13"
+    },
+    {
+      "id": "dify-official-doc",
+      "quality": 5,
+      "verified_at": "2026-11-13"
+    },
+    {
+      "id": "git-official-reference",
+      "quality": 4,
+      "verified_at": "2026-11-13"
+    },
+    {
+      "id": "kubernetes-official-basics",
+      "quality": 5,
+      "verified_at": "2026-11-13"
+    },
+    {
+      "id": "kafka-official-quickstart",
+      "quality": 5,
+      "verified_at": "2026-11-13"
+    },
+    {
+      "id": "postgresql-official-tutorial",
+      "quality": 5,
+      "verified_at": "2026-11-13"
+    }
+  ]
+}

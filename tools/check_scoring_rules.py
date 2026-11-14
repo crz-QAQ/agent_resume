@@ -240,6 +240,20 @@ def _check_family_mixed() -> str:
     _equal("F2/族缺失技能分", 8, missing.breakdown["skills"])
     _equal("F2/族扣分文案", "必备技能：LLM 产品（举例：DeepSeek、Qwen）", missing.deductions[0].item)
     _equal("F2/族JD依据", "LLM 产品（举例：DeepSeek、Qwen）", missing.deductions[0].jd_evidence)
+    # M8b/M9b：单成员保留原文，多成员仍印族名和举例，数值不受文案影响。
+    labels = ((("消息队列",), "消息队列"), (("Kafka",), "Kafka"),
+              (("消息队列", "消 息 队 列"), "消息队列（举例：消息队列、消 息 队 列）"))
+    for names, label in labels:
+        short = _score("F2/族文案简化", _resume(), _job(skills=names))
+        _equal("F2/简化文案", f"必备技能：{label}", short.deductions[0].item)
+        _equal("F2/简化依据", label, short.deductions[0].jd_evidence)
+        _equal("F2/简化后技能分", 0, short.breakdown["skills"])
+        _equal("F2/简化后扣分", [15], [item.deduct for item in short.deductions])
+    # 真正的多个成员继续展示原有举例，不能把所有括号一律删掉。
+    multiple = _score("F2/多个族成员", _resume(), _job(skills=("Kafka", "RabbitMQ")))
+    _equal("F2/多成员原文案", "必备技能：消息队列（举例：Kafka、RabbitMQ）", multiple.deductions[0].item)
+    _equal("F2/多成员技能分", 0, multiple.breakdown["skills"])
+    _equal("F2/多成员扣分", [15], [item.deduct for item in multiple.deductions])
     # 多次运行同时比较明细及完整扣分列表，禁止集合遍历影响报告顺序。
     snapshots = []
     for _ in range(3):
@@ -249,7 +263,7 @@ def _check_family_mixed() -> str:
                sum(item.deduct for item in repeated.deductions if item.type == "missing_skill"))
     _equal("F2/第1次等于第2次", snapshots[0], snapshots[1])
     _equal("F2/第2次等于第3次", snapshots[1], snapshots[2])
-    return "分母2；skills=8；Go扣7；族文案、技能守恒及三次确定性通过"
+    return "分母2；skills=8；Go扣7；单成员保留原文，多成员举例保留；技能守恒及三次确定性通过"
 
 
 def _check_family_real_gap() -> str:

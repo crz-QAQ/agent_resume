@@ -1,0 +1,99 @@
+{
+  "checked_at": "2026-11-14T06:16:33.808580+00:00",
+  "command": "curl -sL -o /dev/null -w \"%{http_code}\" -m 10 URL",
+  "windows_null_device": "nul",
+  "domains": [
+    {
+      "id": "python.langchain.com",
+      "url": "https://python.langchain.com/",
+      "status_code": "200",
+      "curl_exit": 0
+    },
+    {
+      "id": "huggingface.co",
+      "url": "https://huggingface.co/",
+      "status_code": "200",
+      "curl_exit": 0
+    },
+    {
+      "id": "www.promptingguide.ai",
+      "url": "https://www.promptingguide.ai/",
+      "status_code": "200",
+      "curl_exit": 0
+    },
+    {
+      "id": "docs.trychroma.com",
+      "url": "https://docs.trychroma.com/",
+      "status_code": "200",
+      "curl_exit": 0
+    },
+    {
+      "id": "www.anthropic.com",
+      "url": "https://www.anthropic.com/",
+      "status_code": "200",
+      "curl_exit": 0
+    },
+    {
+      "id": "docs.llamaindex.ai",
+      "url": "https://docs.llamaindex.ai/",
+      "status_code": "200",
+      "curl_exit": 0
+    },
+    {
+      "id": "learn.microsoft.com",
+      "url": "https://learn.microsoft.com/",
+      "status_code": "200",
+      "curl_exit": 0
+    }
+  ],
+  "materials": [
+    {
+      "id": "fde-rag",
+      "url": "https://huggingface.co/learn/cookbook/advanced_rag",
+      "status_code": "200",
+      "curl_exit": 0
+    },
+    {
+      "id": "fde-evaluation",
+      "url": "https://huggingface.co/learn/cookbook/rag_evaluation",
+      "status_code": "200",
+      "curl_exit": 0
+    },
+    {
+      "id": "fde-requirements",
+      "url": "https://learn.microsoft.com/en-us/azure/cloud-adoption-framework/ai/plan",
+      "status_code": "200",
+      "curl_exit": 0
+    },
+    {
+      "id": "fde-prompt-engineering",
+      "url": "https://www.promptingguide.ai/introduction/tips",
+      "status_code": "200",
+      "curl_exit": 0
+    },
+    {
+      "id": "fde-agent-workflows",
+      "url": "https://www.anthropic.com/research/building-effective-agents",
+      "status_code": "200",
+      "curl_exit": 0
+    },
+    {
+      "id": "fde-knowledge-base",
+      "url": "https://docs.dify.ai/en/cloud/use-dify/knowledge/overview",
+      "status_code": "200",
+      "curl_exit": 0
+    },
+    {
+      "id": "fde-delivery-acceptance",
+      "url": "https://learn.microsoft.com/en-us/azure/well-architected/ai/test",
+      "status_code": "200",
+      "curl_exit": 0
+    },
+    {
+      "id": "fde-vector-search",
+      "url": "https://docs.trychroma.com/docs/overview/getting-started",
+      "status_code": "200",
+      "curl_exit": 0
+    }
+  ]
+}

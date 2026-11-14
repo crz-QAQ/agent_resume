@@ -1,0 +1,26 @@
+结构校验：通过；version=1；材料 20 条
+评分校验：通过；全部 quality 为 1~5 整数，0 分未评分直接失败
+评分口径：通过；quality_rubric 存在且非空
+材料数量：通过；要求 18~21 条
+FDE材料/域名：通过；新增 8 条，外链域名均在 ALLOWED_DOMAINS 内
+go-official-doc | HTTP 200 | verified | https://go.dev/doc/ | HTTP 200
+python-official-tutorial | HTTP 200 | verified | https://docs.python.org/3/tutorial/ | HTTP 200
+mysql-official-manual | HTTP 200 | verified | https://dev.mysql.com/doc/refman/8.4/en/ | HTTP 200
+redis-official-doc | HTTP 200 | verified | https://redis.io/docs/latest/ | HTTP 200
+docker-official-start | HTTP 200 | verified | https://docs.docker.com/get-started | HTTP 200
+fastapi-official-tutorial | HTTP 200 | verified | https://fastapi.tiangolo.com/tutorial/ | HTTP 200
+langchain-official-overview | HTTP 200 | verified | https://docs.langchain.com/oss/python/langchain/overview | HTTP 200
+dify-official-doc | HTTP 200 | verified | https://docs.dify.ai/en/home | HTTP 200
+git-official-reference | HTTP 200 | verified | https://git-scm.com/docs | HTTP 200
+kubernetes-official-basics | HTTP 200 | verified | https://kubernetes.io/docs/tutorials/kubernetes-basics/index.html | HTTP 200
+kafka-official-quickstart | HTTP 200 | verified | https://kafka.apache.org/quickstart/ | HTTP 200
+postgresql-official-tutorial | HTTP 200 | verified | https://www.postgresql.org/docs/current/tutorial.html | HTTP 200
+fde-rag | HTTP 200 | verified | https://huggingface.co/learn/cookbook/advanced_rag | HTTP 200
+fde-evaluation | HTTP 200 | verified | https://huggingface.co/learn/cookbook/rag_evaluation | HTTP 200
+fde-requirements | HTTP 200 | verified | https://learn.microsoft.com/en-us/azure/cloud-adoption-framework/ai/plan | HTTP 200
+fde-prompt-engineering | HTTP 200 | verified | https://www.promptingguide.ai/introduction/tips | HTTP 200
+fde-agent-workflows | HTTP 200 | verified | https://www.anthropic.com/research/building-effective-agents | HTTP 200
+fde-knowledge-base | HTTP 200 | verified | https://docs.dify.ai/en/cloud/use-dify/knowledge/overview | HTTP 200
+fde-delivery-acceptance | HTTP 200 | verified | https://learn.microsoft.com/en-us/azure/well-architected/ai/test | HTTP 200
+fde-vector-search | HTTP 200 | verified | https://docs.trychroma.com/docs/overview/getting-started | HTTP 200
+通过 25/25

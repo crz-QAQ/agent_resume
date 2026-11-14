@@ -1,0 +1,187 @@
+{
+  "checked_at": "2026-11-14T07:07:59.790911+00:00",
+  "version": "1",
+  "count": 20,
+  "results": [
+    {
+      "id": "go-official-doc",
+      "locator": "https://go.dev/doc/",
+      "status_code": 200,
+      "status": "verified",
+      "redirects": [],
+      "reason": "HTTP 200",
+      "effective_url": "https://go.dev/doc/"
+    },
+    {
+      "id": "python-official-tutorial",
+      "locator": "https://docs.python.org/3/tutorial/",
+      "status_code": 200,
+      "status": "verified",
+      "redirects": [],
+      "reason": "HTTP 200",
+      "effective_url": "https://docs.python.org/3/tutorial/"
+    },
+    {
+      "id": "mysql-official-manual",
+      "locator": "https://dev.mysql.com/doc/refman/8.4/en/",
+      "status_code": 200,
+      "status": "verified",
+      "redirects": [],
+      "reason": "HTTP 200",
+      "effective_url": "https://dev.mysql.com/doc/refman/8.4/en/"
+    },
+    {
+      "id": "redis-official-doc",
+      "locator": "https://redis.io/docs/latest/",
+      "status_code": 200,
+      "status": "verified",
+      "redirects": [],
+      "reason": "HTTP 200",
+      "effective_url": "https://redis.io/docs/latest/"
+    },
+    {
+      "id": "docker-official-start",
+      "locator": "https://docs.docker.com/get-started",
+      "status_code": 200,
+      "status": "verified",
+      "redirects": [],
+      "reason": "HTTP 200",
+      "effective_url": "https://docs.docker.com/get-started"
+    },
+    {
+      "id": "fastapi-official-tutorial",
+      "locator": "https://fastapi.tiangolo.com/tutorial/",
+      "status_code": 200,
+      "status": "verified",
+      "redirects": [],
+      "reason": "HTTP 200",
+      "effective_url": "https://fastapi.tiangolo.com/tutorial/"
+    },
+    {
+      "id": "langchain-official-overview",
+      "locator": "https://docs.langchain.com/oss/python/langchain/overview",
+      "status_code": 200,
+      "status": "verified",
+      "redirects": [],
+      "reason": "HTTP 200",
+      "effective_url": "https://docs.langchain.com/oss/python/langchain/overview"
+    },
+    {
+      "id": "dify-official-doc",
+      "locator": "https://docs.dify.ai/en/home",
+      "status_code": 200,
+      "status": "verified",
+      "redirects": [],
+      "reason": "HTTP 200",
+      "effective_url": "https://docs.dify.ai/en/home"
+    },
+    {
+      "id": "git-official-reference",
+      "locator": "https://git-scm.com/docs",
+      "status_code": 200,
+      "status": "verified",
+      "redirects": [],
+      "reason": "HTTP 200",
+      "effective_url": "https://git-scm.com/docs"
+    },
+    {
+      "id": "kubernetes-official-basics",
+      "locator": "https://kubernetes.io/docs/tutorials/kubernetes-basics/index.html",
+      "status_code": 200,
+      "status": "verified",
+      "redirects": [],
+      "reason": "HTTP 200",
+      "effective_url": "https://kubernetes.io/docs/tutorials/kubernetes-basics/index.html"
+    },
+    {
+      "id": "kafka-official-quickstart",
+      "locator": "https://kafka.apache.org/quickstart/",
+      "status_code": 200,
+      "status": "verified",
+      "redirects": [],
+      "reason": "HTTP 200",
+      "effective_url": "https://kafka.apache.org/quickstart/"
+    },
+    {
+      "id": "postgresql-official-tutorial",
+      "locator": "https://www.postgresql.org/docs/current/tutorial.html",
+      "status_code": 200,
+      "status": "verified",
+      "redirects": [],
+      "reason": "HTTP 200",
+      "effective_url": "https://www.postgresql.org/docs/current/tutorial.html"
+    },
+    {
+      "id": "fde-rag",
+      "locator": "https://huggingface.co/learn/cookbook/advanced_rag",
+      "status_code": 200,
+      "status": "verified",
+      "redirects": [],
+      "reason": "HTTP 200",
+      "effective_url": "https://huggingface.co/learn/cookbook/advanced_rag"
+    },
+    {
+      "id": "fde-evaluation",
+      "locator": "https://huggingface.co/learn/cookbook/rag_evaluation",
+      "status_code": 200,
+      "status": "verified",
+      "redirects": [],
+      "reason": "HTTP 200",
+      "effective_url": "https://huggingface.co/learn/cookbook/rag_evaluation"
+    },
+    {
+      "id": "fde-requirements",
+      "locator": "https://learn.microsoft.com/en-us/azure/cloud-adoption-framework/ai/plan",
+      "status_code": 200,
+      "status": "verified",
+      "redirects": [],
+      "reason": "HTTP 200",
+      "effective_url": "https://learn.microsoft.com/en-us/azure/cloud-adoption-framework/ai/plan"
+    },
+    {
+      "id": "fde-prompt-engineering",
+      "locator": "https://www.promptingguide.ai/introduction/tips",
+      "status_code": 200,
+      "status": "verified",
+      "redirects": [],
+      "reason": "HTTP 200",
+      "effective_url": "https://www.promptingguide.ai/introduction/tips"
+    },
+    {
+      "id": "fde-agent-workflows",
+      "locator": "https://www.anthropic.com/research/building-effective-agents",
+      "status_code": 200,
+      "status": "verified",
+      "redirects": [],
+      "reason": "HTTP 200",
+      "effective_url": "https://www.anthropic.com/research/building-effective-agents"
+    },
+    {
+      "id": "fde-knowledge-base",
+      "locator": "https://docs.dify.ai/en/cloud/use-dify/knowledge/overview",
+      "status_code": 200,
+      "status": "verified",
+      "redirects": [],
+      "reason": "HTTP 200",
+      "effective_url": "https://docs.dify.ai/en/cloud/use-dify/knowledge/overview"
+    },
+    {
+      "id": "fde-delivery-acceptance",
+      "locator": "https://learn.microsoft.com/en-us/azure/well-architected/ai/test",
+      "status_code": 200,
+      "status": "verified",
+      "redirects": [],
+      "reason": "HTTP 200",
+      "effective_url": "https://learn.microsoft.com/en-us/azure/well-architected/ai/test"
+    },
+    {
+      "id": "fde-vector-search",
+      "locator": "https://docs.trychroma.com/docs/overview/getting-started",
+      "status_code": 200,
+      "status": "verified",
+      "redirects": [],
+      "reason": "HTTP 200",
+      "effective_url": "https://docs.trychroma.com/docs/overview/getting-started"
+    }
+  ]
+}

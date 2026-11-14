@@ -1,0 +1,75 @@
+{
+  "http_status": 200,
+  "input_resume_bytes": 276107,
+  "jd_chars": 1081,
+  "gap_count": 8,
+  "matched_gaps": 6,
+  "unmatched": [
+    "skil",
+    "推动方案从\"可以演示\"走向\"有人使用\"，持续解决使用习惯、使用环境和使使用体验中的问题"
+  ],
+  "semantic_attempts": 3,
+  "semantic_fallback": "used",
+  "semantic_errors": {},
+  "learning_cost_yuan": 0,
+  "full_review_cost_yuan": 0.00908988,
+  "real_model_responses": 5,
+  "elapsed_seconds": 20.705,
+  "review_pdf_download": 200,
+  "unmatched_material_placeholders": 2,
+  "gaps": [
+    {
+      "gap": "知识库",
+      "matched_by": "family",
+      "materials": [
+        "fde-knowledge-base"
+      ]
+    },
+    {
+      "gap": "工作流",
+      "matched_by": "family",
+      "materials": [
+        "fde-agent-workflows"
+      ]
+    },
+    {
+      "gap": "AI编程工具",
+      "matched_by": "semantic",
+      "materials": [
+        "fde-prompt-engineering"
+      ]
+    },
+    {
+      "gap": "skil",
+      "matched_by": "none",
+      "materials": []
+    },
+    {
+      "gap": "深入一线业务，与业务负责人和一线员工共同工作，识别真正值得AI借鉴的问题",
+      "matched_by": "keyword",
+      "materials": [
+        "fde-requirements"
+      ]
+    },
+    {
+      "gap": "梳理业务流程、关键判断和专业经验，将其转化为AI可以理解和执行的场景方案",
+      "matched_by": "keyword",
+      "materials": [
+        "fde-requirements"
+      ]
+    },
+    {
+      "gap": "推动方案从\"可以演示\"走向\"有人使用\"，持续解决使用习惯、使用环境和使使用体验中的问题",
+      "matched_by": "none",
+      "materials": []
+    },
+    {
+      "gap": "建立评测和反馈机制，通过真实业务结果判断方案是否有效，并打待续迭代",
+      "matched_by": "keyword",
+      "materials": [
+        "fde-evaluation"
+      ]
+    }
+  ],
+  "cumulative_review_cost_yuan": 0.01835576
+}

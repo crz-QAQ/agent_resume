@@ -14,13 +14,15 @@ from starlette.concurrency import run_in_threadpool
 from app import guard_revision, job_parser, resume_parser, resume_rewrite, revision_llm, score_delta, scoring_llm
 from app.job_profile import PROFILE_VERSION, ProfileNotConfirmed, confirm_profile, infer_profile
 from app.match_pipeline import ModelUnavailableError
+from app.learning_resources import LearningPlan, build_learning_plan, load_materials
 from app.resume_diagnose import diagnose
 from app.revision_pdf import render_review_pdf
 from app.schemas import ResumeInfo
 from app.schemas_match import JobInfo
-from app.schemas_revision import AdaptedText, DiagnosisReport, JobProfile, RevisionReport, ScoreDelta
+from app.schemas_revision import AdaptedText, DiagnosisReport, JobProfile, RevisionReport, ScoreDelta, UpliftPlan
 from app.scoring_rules import HardScore, score_hard
 from app.scoring_semantic import score_semantic
+from app.uplift_plan import apply_score_impact, build_uplift_plan
 
 
 class ReviseOutcome(BaseModel):
@@ -30,6 +32,9 @@ class ReviseOutcome(BaseModel):
     report: RevisionReport
     diagnosis: DiagnosisReport
     delta: ScoreDelta | None
+    # 两份计划仅含缺口和上游分数，不携带完整简历或解析结构。
+    learning_plan: LearningPlan | None = None
+    uplift_plan: UpliftPlan | None = None
     profile: JobProfile
     resume_name: str
     # 画像模式保留 job=None，使 M3 按已确认画像声明来源。
@@ -197,6 +202,30 @@ async def run_review(*, filename: str, raw: bytes, job_title: str | None, jd_tex
     # M3 会吞掉厂商异常并标记 failed，编排层必须把失败传递给接口。
     if report.meta.get("status") == "failed":
         raise ModelUnavailableError("修改意见模型不可用，请稍后重试")
+    # M8c：材料库及规则匹配只使用当前诊断/评分；加载失败独立降级，不阻断意见。
+    learning_started = perf_counter()
+    learning_plan, learning_unavailable = None, False
+    try:
+        materials, materials_version = await run_in_threadpool(load_materials)
+        learning_plan = await run_in_threadpool(build_learning_plan, diagnosis=diagnosis, hard=hard,
+            sem=sem, job_title=profile.title, materials=materials, semantic_fallback=True)
+        learning_plan.meta["materials_version"] = materials_version
+    except (ValueError, OSError):
+        # 不把校验异常中的本机路径、材料正文或未筛选数据暴露到报告。
+        learning_unavailable = True
+        reasons.append("学习材料库暂不可用，本次未附学习材料")
+    learning_ms = round((perf_counter() - learning_started) * 1000, 3)
+    # M9c：按改前已存在的评分事实建策略，再回填派生影响；不改 M3/M5/M6 内部逻辑。
+    uplift_started = perf_counter()
+    uplift_plan = await run_in_threadpool(build_uplift_plan, hard=hard, sem=sem, llm_score=before_llm,
+        job=score_job, diagnosis=diagnosis, llm_estimated=llm_estimated)
+    report.issues = apply_score_impact(report.issues, uplift_plan)
+    report.meta.update(learning_ms=learning_ms, uplift_ms=round((perf_counter() - uplift_started) * 1000, 3),
+        has_external_links=bool(learning_plan and learning_plan.meta["has_external"]),
+        learning_unavailable=learning_unavailable,
+        semantic_attempts=learning_plan.meta["semantic_attempts"] if learning_plan else 0,
+        semantic_fallback=learning_plan.meta["semantic_fallback"] if learning_plan else "unavailable",
+        semantic_errors=dict(learning_plan.meta["semantic_errors"]) if learning_plan else {})
     # 合计两次抽取、改前复核与 M3；单列新增费用以核对单次预算。
     revision_cost = report.meta.get("cost_yuan", 0.0)
     report.meta.update(cost_yuan=revision_cost + resume.cost_yuan + job_cost + llm_cost,
@@ -210,7 +239,8 @@ async def run_review(*, filename: str, raw: bytes, job_title: str | None, jd_tex
         report.meta["status"] = "needs_review"
     # 原文被明确排除序列化；原始字节由 HTTP 内存会话单独保存。
     outcome = ReviseOutcome(report=report, diagnosis=diagnosis, delta=None, profile=report.profile,
-        resume_name=resume_name, job=job, resume_text=resume.raw_text, meta={})
+        resume_name=resume_name, job=job, resume_text=resume.raw_text, meta={},
+        learning_plan=learning_plan, uplift_plan=uplift_plan)
     outcome._resume, outcome._hard = resume.data, hard
     outcome._before_llm = before_llm
     # 预估候选也先过 M5：只在内存预演，JD 雷同、定位失败或冲突不能贡献虚假提分。
@@ -231,7 +261,8 @@ async def review_pdf(outcome: ReviseOutcome) -> bytes:
     """使用 M4 排版现成分析结果；生成 PDF 也在线程池中完成。"""
     # 每次传入已回填的 delta，初始意见下载也有真实的分项对比和免责声明。
     return await run_in_threadpool(render_review_pdf, outcome.report, outcome.diagnosis,
-        job_title=outcome.profile.title, resume_name=outcome.resume_name, hard=outcome._hard, delta=outcome.delta)
+        job_title=outcome.profile.title, resume_name=outcome.resume_name, hard=outcome._hard, delta=outcome.delta,
+        learning_plan=outcome.learning_plan, uplift_plan=outcome.uplift_plan)
 
 
 async def run_apply(*, outcome: ReviseOutcome, raw: bytes, filename: str,

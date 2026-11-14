@@ -5,6 +5,7 @@ ReportLab 默认字体不含中文，不处理就是方块。
 按系统字体到内置 CID 的顺序回退，供 Canvas、Paragraph 和 Table 复用。
 """
 
+from pathlib import Path
 from threading import Lock
 
 from reportlab.pdfbase import pdfmetrics
@@ -15,6 +16,8 @@ from reportlab.pdfbase.ttfonts import TTFont
 _registered: str | None = None
 # 并发首次调用可能同时发现缓存为空；加锁避免重复注册。
 _lock = Lock()
+# 仅本地教材路径使用等宽字体，不改变现有报告的中文字体或回退顺序。
+_mono_registered: str | None = None
 
 
 def register_cjk_font() -> str:
@@ -76,3 +79,27 @@ def get_cjk_font() -> str:
     异常：RuntimeError，没有任何可用中文字体时由注册函数抛出。
     """
     return register_cjk_font()
+
+
+def get_monospace_font() -> str:
+    """注册能显示中文路径的本地等宽字体；没有可用字体时明确失败。"""
+    global _mono_registered
+    with _lock:
+        if _mono_registered is not None:
+            return _mono_registered
+        # 宋体 ASCII 为半角等宽，中文为全角；不以缺中文字形的西文字体代替。
+        candidates = (Path("C:/Windows/Fonts/simsun.ttc"),
+                      Path("/usr/share/fonts/truetype/arphic/uming.ttc"))
+        for path in candidates:
+            if not path.is_file():
+                continue
+            font = TTFont("revision-code-mono", str(path), subfontIndex=0)
+            # 度量和字形均验证，避免仅字体名称含 Mono 就声称支持等宽中文。
+            widths = font.face.charWidths
+            if (widths.get(ord("i")) != widths.get(ord("W"))
+                    or not all(ord(char) in widths for char in "中文教材")):
+                continue
+            pdfmetrics.registerFont(font)
+            _mono_registered = font.fontName
+            return _mono_registered
+        raise RuntimeError("没有可用的中文等宽字体，无法显示本地材料路径")

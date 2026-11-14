@@ -1,0 +1,227 @@
+{
+  "quality_rubric": "5=官方文档且系统完整（可零基础学到上手）；4=官方文档但偏 API 索引，适合查阅；3=权威第三方教程",
+  "version": "1",
+  "updated_at": "2026-11-14",
+  "materials": [
+    {
+      "id": "go-official-doc",
+      "title": "Documentation - The Go Programming Language",
+      "kind": "external",
+      "locator": "https://go.dev/doc/",
+      "tags": ["Go", "Golang"],
+      "level": "入门",
+      "quality": 5,
+      "verified_at": "2026-11-13",
+      "note": "Go 官方文档，含入门教程、语言说明与标准库入口"
+    },
+    {
+      "id": "python-official-tutorial",
+      "title": "The Python Tutorial",
+      "kind": "external",
+      "locator": "https://docs.python.org/3/tutorial/",
+      "tags": ["Python"],
+      "level": "入门",
+      "quality": 5,
+      "verified_at": "2026-11-13",
+      "note": "Python 官方系统教程，学习语法、模块与异常处理"
+    },
+    {
+      "id": "mysql-official-manual",
+      "title": "MySQL 8.4 Reference Manual",
+      "kind": "external",
+      "locator": "https://dev.mysql.com/doc/refman/8.4/en/",
+      "tags": ["MySQL"],
+      "level": "进阶",
+      "quality": 5,
+      "verified_at": "2026-11-13",
+      "note": "MySQL 官方手册，含 SQL、索引与事务；403 为该站反爬，浏览器可正常访问"
+    },
+    {
+      "id": "redis-official-doc",
+      "title": "Welcome to Redis Docs",
+      "kind": "external",
+      "locator": "https://redis.io/docs/latest/",
+      "tags": ["Redis"],
+      "level": "入门",
+      "quality": 5,
+      "verified_at": "2026-11-13",
+      "note": "Redis 官方文档，含入门、数据类型、客户端与运维说明"
+    },
+    {
+      "id": "docker-official-start",
+      "title": "Get started with Docker",
+      "kind": "external",
+      "locator": "https://docs.docker.com/get-started",
+      "tags": ["Docker"],
+      "level": "入门",
+      "quality": 5,
+      "verified_at": "2026-11-13",
+      "note": "Docker 官方入门，逐步实践镜像构建与容器运行"
+    },
+    {
+      "id": "fastapi-official-tutorial",
+      "title": "Tutorial - User Guide - FastAPI",
+      "kind": "external",
+      "locator": "https://fastapi.tiangolo.com/tutorial/",
+      "tags": ["FastAPI"],
+      "level": "入门",
+      "quality": 5,
+      "verified_at": "2026-11-13",
+      "note": "FastAPI 官方系统教程，逐步学习请求、响应与依赖注入"
+    },
+    {
+      "id": "langchain-official-overview",
+      "title": "LangChain overview",
+      "kind": "external",
+      "locator": "https://docs.langchain.com/oss/python/langchain/overview",
+      "tags": ["LangChain"],
+      "level": "入门",
+      "quality": 4,
+      "verified_at": "2026-11-13",
+      "note": "LangChain 官方概览与组件入口，适合查阅 Agent API 与文档导航"
+    },
+    {
+      "id": "dify-official-doc",
+      "title": "Dify Documentation",
+      "kind": "external",
+      "locator": "https://docs.dify.ai/en/home",
+      "tags": ["Dify"],
+      "level": "入门",
+      "quality": 5,
+      "verified_at": "2026-11-13",
+      "note": "Dify 官方文档，从首个应用学习工作流、知识库与发布"
+    },
+    {
+      "id": "git-official-reference",
+      "title": "Git - Reference",
+      "kind": "external",
+      "locator": "https://git-scm.com/docs",
+      "tags": ["Git"],
+      "level": "进阶",
+      "quality": 4,
+      "verified_at": "2026-11-13",
+      "note": "Git 官方命令参考，偏命令与参数索引，适合查阅提交、分支与合并"
+    },
+    {
+      "id": "kubernetes-official-basics",
+      "title": "Learn Kubernetes Basics",
+      "kind": "external",
+      "locator": "https://kubernetes.io/docs/tutorials/kubernetes-basics/index.html",
+      "tags": ["Kubernetes", "K8s"],
+      "level": "入门",
+      "quality": 5,
+      "verified_at": "2026-11-13",
+      "note": "Kubernetes 官方基础教程，逐步实践部署、扩缩容与更新"
+    },
+    {
+      "id": "kafka-official-quickstart",
+      "title": "Quickstart | Apache Kafka",
+      "kind": "external",
+      "locator": "https://kafka.apache.org/quickstart/",
+      "tags": ["Kafka"],
+      "level": "入门",
+      "quality": 5,
+      "verified_at": "2026-11-13",
+      "note": "Kafka 官方快速入门，从启动集群到主题、生产与消费"
+    },
+    {
+      "id": "postgresql-official-tutorial",
+      "title": "PostgreSQL: Part I. Tutorial",
+      "kind": "external",
+      "locator": "https://www.postgresql.org/docs/current/tutorial.html",
+      "tags": ["PostgreSQL", "Postgres"],
+      "level": "入门",
+      "quality": 5,
+      "verified_at": "2026-11-13",
+      "note": "PostgreSQL 官方系统教程，学习建表、SQL、连接与事务"
+    },
+    {
+      "id": "fde-rag",
+      "title": "Advanced RAG on Hugging Face documentation using LangChain",
+      "kind": "external",
+      "locator": "https://huggingface.co/learn/cookbook/advanced_rag",
+      "tags": ["RAG", "检索增强", "向量检索"],
+      "level": "进阶",
+      "quality": 5,
+      "verified_at": "2026-11-14",
+      "note": "补齐文档切分、向量检索、重排与检索增强问答的端到端实践能力"
+    },
+    {
+      "id": "fde-evaluation",
+      "title": "RAG Evaluation - Hugging Face Open-Source AI Cookbook",
+      "kind": "external",
+      "locator": "https://huggingface.co/learn/cookbook/rag_evaluation",
+      "tags": ["Evaluation", "效果评测", "评测集", "指标"],
+      "level": "进阶",
+      "quality": 5,
+      "verified_at": "2026-11-14",
+      "note": "补齐构建问答评测集、计算准确率和对比RAG改动效果的能力"
+    },
+    {
+      "id": "fde-requirements",
+      "title": "Plan for AI adoption - Microsoft Cloud Adoption Framework",
+      "kind": "external",
+      "locator": "https://learn.microsoft.com/en-us/azure/cloud-adoption-framework/ai/plan",
+      "tags": ["Requirements analysis", "需求梳理与拆解", "需求分析", "业务拆解"],
+      "level": "入门",
+      "quality": 5,
+      "verified_at": "2026-11-14",
+      "note": "补齐从业务问题识别需求、拆成用例、排优先级并定义成功指标的能力"
+    },
+    {
+      "id": "fde-prompt-engineering",
+      "title": "General Tips for Designing Prompts - Prompt Engineering Guide",
+      "kind": "external",
+      "locator": "https://www.promptingguide.ai/introduction/tips",
+      "tags": ["Prompt engineering", "Prompt 工程", "提示词"],
+      "level": "入门",
+      "quality": 3,
+      "verified_at": "2026-11-14",
+      "note": "DAIR.AI权威第三方指南，补齐提示词的任务拆分、明确指令与迭代设计能力"
+    },
+    {
+      "id": "fde-agent-workflows",
+      "title": "Building effective agents - Anthropic",
+      "kind": "external",
+      "locator": "https://www.anthropic.com/research/building-effective-agents",
+      "tags": ["Agent", "工作流", "Workflow"],
+      "level": "进阶",
+      "quality": 4,
+      "verified_at": "2026-11-14",
+      "note": "官方架构模式参考，补齐工作流与Agent选型、任务编排和检查点设计能力"
+    },
+    {
+      "id": "fde-knowledge-base",
+      "title": "Knowledge - Dify Docs",
+      "kind": "external",
+      "locator": "https://docs.dify.ai/en/cloud/use-dify/knowledge/overview",
+      "tags": ["Knowledge base", "知识库", "文档问答"],
+      "level": "入门",
+      "quality": 4,
+      "verified_at": "2026-11-14",
+      "note": "官方知识库类型与组件入口，补齐企业内容组织和文档问答方案选择能力"
+    },
+    {
+      "id": "fde-delivery-acceptance",
+      "title": "Test and evaluate AI workloads on Azure - Microsoft Learn",
+      "kind": "external",
+      "locator": "https://learn.microsoft.com/en-us/azure/well-architected/ai/test",
+      "tags": ["Delivery", "交付", "验收"],
+      "level": "进阶",
+      "quality": 5,
+      "verified_at": "2026-11-14",
+      "note": "补齐AI交付前的端到端测试、质量门槛和基于测试结果作出上线验收决策的能力"
+    },
+    {
+      "id": "fde-vector-search",
+      "title": "Getting Started - Chroma Docs",
+      "kind": "external",
+      "locator": "https://docs.trychroma.com/docs/overview/getting-started",
+      "tags": ["Vector search", "向量检索", "文档检索"],
+      "level": "入门",
+      "quality": 5,
+      "verified_at": "2026-11-14",
+      "note": "补齐创建向量集合、写入文档与执行相似检索的上手能力"
+    }
+  ]
+}

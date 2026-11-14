@@ -1,0 +1,69 @@
+{
+  "review_pdf_url": "/revise/file/c5efe9420ac34dada328081e304c05f8/review",
+  "resume_url": null,
+  "resume_ext": null,
+  "applied": [],
+  "skipped": [
+    {
+      "issue_id": "R-001",
+      "before": "[已脱敏]",
+      "reason": "需本人补充经历，系统不代写"
+    },
+    {
+      "issue_id": "R-002",
+      "before": "[已脱敏]",
+      "reason": "需本人补充经历，系统不代写"
+    },
+    {
+      "issue_id": "R-003",
+      "before": "[已脱敏]",
+      "reason": "需本人补充经历，系统不代写"
+    },
+    {
+      "issue_id": "R-004",
+      "before": "[已脱敏]",
+      "reason": "需本人补充经历，系统不代写"
+    },
+    {
+      "issue_id": "R-006",
+      "before": "[已脱敏]",
+      "reason": "需本人补充经历，系统不代写"
+    },
+    {
+      "issue_id": "R-005",
+      "before": "[已脱敏]",
+      "reason": "跨段落，需手动改（原句在文档里被拆成了多段）"
+    }
+  ],
+  "delta": {
+    "before_total": 50,
+    "after_total_estimate": 50,
+    "before_parts": {
+      "hard": 31,
+      "semantic": 3,
+      "llm": 16
+    },
+    "after_parts": {
+      "hard": 31,
+      "semantic": 3,
+      "llm": 16
+    },
+    "delta_parts": {
+      "hard": 0,
+      "semantic": 0,
+      "llm": 0
+    },
+    "estimated_fields": [
+      "llm"
+    ],
+    "covered_before": 1,
+    "covered_after": 1,
+    "notes": [
+      "硬性 0：词句改写不影响年限/学历",
+      "语义 0：覆盖条数未变（1 → 1），改写只影响措辞",
+      "LLM 30 分未重算，沿用改前 16 分（预估误差 ±2，以重新评分为准）",
+      "本次未改动任何句子，分数不变"
+    ],
+    "llm_tolerance": 2
+  }
+}

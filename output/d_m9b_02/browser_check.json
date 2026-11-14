@@ -1,0 +1,31 @@
+{
+  "results": [
+    {
+      "resume": null,
+      "disabled": true,
+      "report_download": true,
+      "note": "本次没有可自动改写的条目：5 条属于你缺的能力（需自己补）、0 条需你补全真实信息、1 条跨段落需手动改",
+      "style": {
+        "background": "rgb(216, 222, 230)",
+        "pointer": "none"
+      }
+    },
+    {
+      "resume": "docx",
+      "disabled": false,
+      "stale_note_hidden": true
+    },
+    {
+      "resume": null,
+      "disabled": true,
+      "report_download": true,
+      "note": "本次没有可自动改写的条目：5 条属于你缺的能力（需自己补）、0 条需你补全真实信息、1 条跨段落需手动改",
+      "style": {
+        "background": "rgb(216, 222, 230)",
+        "pointer": "none"
+      }
+    }
+  ],
+  "errors": [],
+  "mobile_overflow": false
+}

@@ -1,0 +1,75 @@
+{
+  "items": [
+    {
+      "part": "semantic",
+      "item": "JD 职责：负责订单系统接口开发与性能优化",
+      "current": "未覆盖（cos=0.56）",
+      "potential": 8,
+      "action": "用你真实做过的一条经历回应「负责订单系统接口开发与性能优化」：写清场景、你负责的部分、结果数字",
+      "requirement": "你真的做过这件事；这一条是新写，不是改写旧句",
+      "blocked": false
+    },
+    {
+      "part": "semantic",
+      "item": "JD 职责：负责数据库查询优化与缓存设计",
+      "current": "未覆盖（cos=0.49）",
+      "potential": 8,
+      "action": "用你真实做过的一条经历回应「负责数据库查询优化与缓存设计」：写清场景、你负责的部分、结果数字",
+      "requirement": "你真的做过这件事；这一条是新写，不是改写旧句",
+      "blocked": false
+    },
+    {
+      "part": "semantic",
+      "item": "JD 职责：负责服务部署与问题排查",
+      "current": "未覆盖（cos=0.44）",
+      "potential": 8,
+      "action": "用你真实做过的一条经历回应「负责服务部署与问题排查」：写清场景、你负责的部分、结果数字",
+      "requirement": "你真的做过这件事；这一条是新写，不是改写旧句",
+      "blocked": false
+    },
+    {
+      "part": "hard",
+      "item": "必备技能：Go",
+      "current": "未命中（技能项总权重 15 分）",
+      "potential": 5,
+      "action": "在技能栏补 Go，并在相关经历里写出你真实的使用场景与产出",
+      "requirement": "你真的用过 Go；写过但做不到，面试必露",
+      "blocked": false
+    },
+    {
+      "part": "hard",
+      "item": "学历",
+      "current": "简历未提及（当前扣 10 分）",
+      "potential": 0,
+      "action": "改简历拿不到这分：年限靠时间积累，学历靠学历；建议换匹配的岗位",
+      "requirement": "年限或学历必须真实满足 JD 要求，不能靠措辞改变",
+      "blocked": true
+    }
+  ],
+  "achievable_if_true": 29,
+  "unreachable": [
+    "没做过的经历：不能通过改稿写成已有经历；如确有相关经历请补充，否则不建议写",
+    "学历：简历未提及；改简历拿不到这分"
+  ],
+  "ceiling_note": "",
+  "notes": [
+    "用户实测：同一份简历，走完智能修改后总分不变。这不是缺陷，是三层评分的结构决定的：",
+    "① 硬性：真的具备 JD 的必备技能 → 在技能栏与相关经历中写出真实使用场景（每命中一条 +15/N）",
+    "② 语义：把 JD 要求、但简历里完全没有的职责，用你真实做过的事补成一条（覆盖 0 → 1，+30/n×余弦）",
+    "③ LLM：补项目细节（规模/角色/结果）→ 本版不重跑，只能说「下次评分会体现」",
+    "靠改简历永远拿不到的分数：年限不足、学历不达标、以及「没做过却要写的经历」。",
+    "LLM 不可用（llm_estimated=True），未列 LLM 潜力项；本次不重算。",
+    "规则诊断 4 条、ATS 缺词 1 项，仅作补充指引，不另计涨分；覆盖不变时，改措辞的余弦波动为 ±1。",
+    "以上为最多潜力，必须满足每条真实前提；逐项取整，实际变化以重新评分为准。"
+  ],
+  "meta": {
+    "cost_yuan": 0.0,
+    "model_calls": 0,
+    "typical_cos": 0.8,
+    "skill_group_count": 3,
+    "responsibility_count": 3,
+    "llm_estimated": true,
+    "candidate_count": 5,
+    "truncated_count": 0
+  }
+}
