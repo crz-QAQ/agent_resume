@@ -1,0 +1,13 @@
+{
+  "match_materials_unchanged": true,
+  "_keyword_match_unchanged": true,
+  "_loaded_embedding_model_unchanged": true,
+  "_semantic_document_unchanged": true,
+  "materials/materials.json_unchanged": true,
+  "app/scoring_rules.py_unchanged": true,
+  "app/scoring_semantic.py_unchanged": true,
+  "app/scoring_llm.py_unchanged": true,
+  "app/prompts.py_unchanged": true,
+  "app/revision_llm.py_unchanged": true,
+  "app/resume_diagnose.py_unchanged": true
+}

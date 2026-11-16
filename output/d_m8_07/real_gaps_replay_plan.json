@@ -1,0 +1,237 @@
+{
+  "gaps": [
+    {
+      "gap": "知识库",
+      "why": "岗位「AI 业务落地专家」的 JD 要求：知识库",
+      "severity": "high",
+      "materials": [
+        {
+          "id": "fde-knowledge-base",
+          "title": "Knowledge - Dify Docs",
+          "kind": "external",
+          "locator": "https://docs.dify.ai/en/cloud/use-dify/knowledge/overview",
+          "tags": [
+            "Knowledge base",
+            "知识库",
+            "文档问答"
+          ],
+          "level": "入门",
+          "quality": 4,
+          "verified_at": "2026-11-14",
+          "note": "官方知识库类型与组件入口，补齐企业内容组织和文档问答方案选择能力"
+        }
+      ],
+      "meta": {
+        "matched_by": "family"
+      }
+    },
+    {
+      "gap": "工作流",
+      "why": "岗位「AI 业务落地专家」的 JD 要求：工作流",
+      "severity": "high",
+      "materials": [
+        {
+          "id": "fde-agent-workflows",
+          "title": "Building effective agents - Anthropic",
+          "kind": "external",
+          "locator": "https://www.anthropic.com/research/building-effective-agents",
+          "tags": [
+            "Agent",
+            "工作流",
+            "Workflow"
+          ],
+          "level": "进阶",
+          "quality": 4,
+          "verified_at": "2026-11-14",
+          "note": "官方架构模式参考，补齐工作流与Agent选型、任务编排和检查点设计能力"
+        }
+      ],
+      "meta": {
+        "matched_by": "family"
+      }
+    },
+    {
+      "gap": "AI编程工具",
+      "why": "岗位「AI 业务落地专家」的 JD 要求：AI编程工具",
+      "severity": "high",
+      "materials": [],
+      "meta": {
+        "matched_by": "none",
+        "top1_id": "fde-prompt-engineering",
+        "top1_cos": 0.5807939444821716,
+        "top2_cos": 0.5233517024666422,
+        "margin": 0.05744224201552939,
+        "min_cos": 0.45,
+        "min_margin": 0.03,
+        "model": "BAAI/bge-small-zh-v1.5",
+        "rejected_semantic": [
+          {
+            "id": "fde-prompt-engineering",
+            "cos": 0.5807939444821716,
+            "reason": "no_shared_terms"
+          }
+        ]
+      }
+    },
+    {
+      "gap": "skil",
+      "why": "岗位「AI 业务落地专家」的 JD 要求：skil",
+      "severity": "high",
+      "materials": [],
+      "meta": {
+        "matched_by": "none",
+        "semantic_rejection": "未知英文词缺少任务上下文"
+      }
+    },
+    {
+      "gap": "深入一线业务，与业务负责人和一线员工共同工作，识别真正值得AI借鉴的问题",
+      "why": "岗位「AI 业务落地专家」的 JD 要求：深入一线业务，与业务负责人和一线员工共同工作，识别真正值得AI借鉴的问题",
+      "severity": "medium",
+      "materials": [
+        {
+          "id": "fde-requirements",
+          "title": "Plan for AI adoption - Microsoft Cloud Adoption Framework",
+          "kind": "external",
+          "locator": "https://learn.microsoft.com/en-us/azure/cloud-adoption-framework/ai/plan",
+          "tags": [
+            "Requirements analysis",
+            "需求梳理与拆解",
+            "需求分析",
+            "业务拆解"
+          ],
+          "level": "入门",
+          "quality": 5,
+          "verified_at": "2026-11-14",
+          "note": "补齐从业务问题识别需求、拆成用例、排优先级并定义成功指标的能力；匹配方式：关键词"
+        }
+      ],
+      "meta": {
+        "matched_by": "keyword",
+        "keywords": [
+          "业务"
+        ]
+      }
+    },
+    {
+      "gap": "梳理业务流程、关键判断和专业经验，将其转化为AI可以理解和执行的场景方案",
+      "why": "岗位「AI 业务落地专家」的 JD 要求：梳理业务流程、关键判断和专业经验，将其转化为AI可以理解和执行的场景方案",
+      "severity": "medium",
+      "materials": [
+        {
+          "id": "fde-requirements",
+          "title": "Plan for AI adoption - Microsoft Cloud Adoption Framework",
+          "kind": "external",
+          "locator": "https://learn.microsoft.com/en-us/azure/cloud-adoption-framework/ai/plan",
+          "tags": [
+            "Requirements analysis",
+            "需求梳理与拆解",
+            "需求分析",
+            "业务拆解"
+          ],
+          "level": "入门",
+          "quality": 5,
+          "verified_at": "2026-11-14",
+          "note": "补齐从业务问题识别需求、拆成用例、排优先级并定义成功指标的能力；匹配方式：关键词"
+        }
+      ],
+      "meta": {
+        "matched_by": "keyword",
+        "keywords": [
+          "业务"
+        ]
+      }
+    },
+    {
+      "gap": "推动方案从\"可以演示\"走向\"有人使用\"，持续解决使用习惯、使用环境和使使用体验中的问题",
+      "why": "岗位「AI 业务落地专家」的 JD 要求：推动方案从\"可以演示\"走向\"有人使用\"，持续解决使用习惯、使用环境和使使用体验中的问题",
+      "severity": "medium",
+      "materials": [],
+      "meta": {
+        "matched_by": "none",
+        "top1_id": "fde-rag",
+        "top1_cos": 0.4646714771587061,
+        "top2_cos": 0.45906721866540373,
+        "margin": 0.005604258493302372,
+        "min_cos": 0.45,
+        "min_margin": 0.03,
+        "model": "BAAI/bge-small-zh-v1.5"
+      }
+    },
+    {
+      "gap": "建立评测和反馈机制，通过真实业务结果判断方案是否有效，并打待续迭代",
+      "why": "岗位「AI 业务落地专家」的 JD 要求：建立评测和反馈机制，通过真实业务结果判断方案是否有效，并打待续迭代",
+      "severity": "medium",
+      "materials": [
+        {
+          "id": "fde-evaluation",
+          "title": "RAG Evaluation - Hugging Face Open-Source AI Cookbook",
+          "kind": "external",
+          "locator": "https://huggingface.co/learn/cookbook/rag_evaluation",
+          "tags": [
+            "Evaluation",
+            "效果评测",
+            "评测集",
+            "指标"
+          ],
+          "level": "进阶",
+          "quality": 5,
+          "verified_at": "2026-11-14",
+          "note": "补齐构建问答评测集、计算准确率和对比RAG改动效果的能力；匹配方式：关键词"
+        }
+      ],
+      "meta": {
+        "matched_by": "keyword",
+        "keywords": [
+          "评测"
+        ]
+      }
+    }
+  ],
+  "unmatched": [
+    "AI编程工具",
+    "skil",
+    "推动方案从\"可以演示\"走向\"有人使用\"，持续解决使用习惯、使用环境和使使用体验中的问题"
+  ],
+  "meta": {
+    "materials_version": "1",
+    "elapsed_ms": null,
+    "cost_yuan": 0,
+    "model_calls": 2,
+    "local_model_calls": {
+      "embedding": 2,
+      "reranker": 0
+    },
+    "has_external": true,
+    "semantic_fallback": "used",
+    "semantic_attempts": 3,
+    "semantic_errors": {},
+    "unmatched_reasons": {
+      "AI编程工具": "材料库暂无对应条目",
+      "skil": "材料库暂无对应条目",
+      "推动方案从\"可以演示\"走向\"有人使用\"，持续解决使用习惯、使用环境和使使用体验中的问题": "材料库暂无对应条目"
+    },
+    "matched_by": {
+      "知识库": "family",
+      "工作流": "family",
+      "AI编程工具": "none",
+      "skil": "none",
+      "深入一线业务，与业务负责人和一线员工共同工作，识别真正值得AI借鉴的问题": "keyword",
+      "梳理业务流程、关键判断和专业经验，将其转化为AI可以理解和执行的场景方案": "keyword",
+      "推动方案从\"可以演示\"走向\"有人使用\"，持续解决使用习惯、使用环境和使使用体验中的问题": "none",
+      "建立评测和反馈机制，通过真实业务结果判断方案是否有效，并打待续迭代": "keyword"
+    },
+    "rejected_semantic": {
+      "AI编程工具": [
+        {
+          "id": "fde-prompt-engineering",
+          "cos": 0.5807939444821716,
+          "reason": "no_shared_terms"
+        }
+      ]
+    },
+    "gap_count_before_limit": 8,
+    "truncated_gaps": 0,
+    "materials_total": 5,
+    "omitted_by_material_limit": 0
+  }
+}

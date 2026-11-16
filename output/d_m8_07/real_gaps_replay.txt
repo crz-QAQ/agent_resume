@@ -1,0 +1,91 @@
+{
+  "mode": "replay_saved_real_review_gaps",
+  "source": "output\\d_m8_06\\real_learning_plan.json",
+  "source_review_date": "2026-11-14",
+  "source_resume_bytes": 276107,
+  "source_jd_chars": 1081,
+  "gap_count": 8,
+  "matched_gaps": 5,
+  "unmatched": [
+    "AI编程工具",
+    "skil",
+    "推动方案从\"可以演示\"走向\"有人使用\"，持续解决使用习惯、使用环境和使使用体验中的问题"
+  ],
+  "rejected_semantic": {
+    "AI编程工具": [
+      {
+        "id": "fde-prompt-engineering",
+        "cos": 0.5807939444821716,
+        "reason": "no_shared_terms"
+      }
+    ]
+  },
+  "semantic_attempts": 3,
+  "cost_yuan": 0,
+  "gaps": [
+    {
+      "gap": "知识库",
+      "matched_by": "family",
+      "materials": [
+        "fde-knowledge-base"
+      ],
+      "rejected_semantic": []
+    },
+    {
+      "gap": "工作流",
+      "matched_by": "family",
+      "materials": [
+        "fde-agent-workflows"
+      ],
+      "rejected_semantic": []
+    },
+    {
+      "gap": "AI编程工具",
+      "matched_by": "none",
+      "materials": [],
+      "rejected_semantic": [
+        {
+          "id": "fde-prompt-engineering",
+          "cos": 0.5807939444821716,
+          "reason": "no_shared_terms"
+        }
+      ]
+    },
+    {
+      "gap": "skil",
+      "matched_by": "none",
+      "materials": [],
+      "rejected_semantic": []
+    },
+    {
+      "gap": "深入一线业务，与业务负责人和一线员工共同工作，识别真正值得AI借鉴的问题",
+      "matched_by": "keyword",
+      "materials": [
+        "fde-requirements"
+      ],
+      "rejected_semantic": []
+    },
+    {
+      "gap": "梳理业务流程、关键判断和专业经验，将其转化为AI可以理解和执行的场景方案",
+      "matched_by": "keyword",
+      "materials": [
+        "fde-requirements"
+      ],
+      "rejected_semantic": []
+    },
+    {
+      "gap": "推动方案从\"可以演示\"走向\"有人使用\"，持续解决使用习惯、使用环境和使使用体验中的问题",
+      "matched_by": "none",
+      "materials": [],
+      "rejected_semantic": []
+    },
+    {
+      "gap": "建立评测和反馈机制，通过真实业务结果判断方案是否有效，并打待续迭代",
+      "matched_by": "keyword",
+      "materials": [
+        "fde-evaluation"
+      ],
+      "rejected_semantic": []
+    }
+  ]
+}

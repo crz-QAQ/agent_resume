@@ -685,8 +685,32 @@ def _check_l4() -> str:
     return f"{item.pages} 页 / {len(item.data)} 字节；外链 URI 可点、需联网标记正确、标题 ≤60 字"
 
 
+def _check_l5() -> str:
+    """L5：混排材料只给 semantic 标明推荐性质，提示实际为 8pt 灰字，审计不进 PDF。"""
+    report, diagnosis, hard = _inputs()
+    material = _learning().gaps[0].materials[0]
+    methods = ("semantic", "keyword", "family")
+    plan = LearningPlan(gaps=[LearningGap(gap=f"{method.upper()}-CARD", why="JD 要求该能力", severity="high",
+                        materials=[material], meta={"matched_by": method}) for method in methods], unmatched=[],
+                        meta={"rejected_semantic": {"debug": [{"id": "REJECTED-DEBUG-ONLY", "cos": .987654321}]}})
+    item = _generate("L5-semantic", report, diagnosis, hard, learning_plan=plan)
+    note = "系统按语义相似推荐，请自行判断是否对得上"
+    learning = _compact(item.text).split("SEMANTIC-CARD", 1)[1]
+    semantic, others = learning.split("KEYWORD-CARD", 1)
+    _expect(note in semantic and "语义相似推荐" not in others and _compact(item.text).count(note) == 1,
+            "semantic 材料行缺提示，或 keyword/family 材料行多出提示")
+    _expect("REJECTED-DEBUG-ONLY" not in item.text and "0.987654321" not in item.text, "被拒候选审计进入 PDF")
+    with pdfplumber.open(BytesIO(item.data)) as document:
+        chars = [char for page in document.pages for match in page.search(note, regex=False) for char in match["chars"]]
+    _expect(chars and all(abs(char["size"] - 8) < .01 and
+                         all(abs(actual - expected) < .001 for actual, expected in
+                             zip(char["non_stroking_color"], pdf_kit.MUTED.rgb())) for char in chars),
+            "语义提示未使用 8pt 灰字")
+    return f"{item.pages} 页 / {len(item.data)} 字节；semantic 含完整提示（8pt 灰）；keyword/family 无提示；被拒候选不进 PDF"
+
+
 def main() -> int:
-    """运行原十组、M9b 五组和 M8b 四组，保存样张并输出真实页数/字节。"""
+    """运行全部二十三组检查，保存样张并输出真实页数/字节。"""
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", line_buffering=True)
     started = perf_counter()
@@ -700,7 +724,8 @@ def main() -> int:
               ("J1 涨分策略", _check_j1), ("J2 M7 None 回归", _check_j2),
               ("J3 零变化解释", _check_j3), ("J4 语义上限", _check_j4), ("J5 意见分数影响", _check_j5),
               ("L1 学习材料", _check_l1), ("L2 无材料空态", _check_l2),
-              ("L3 本地不可点", _check_l3), ("L4 外链可点", _check_l4))
+              ("L3 本地不可点", _check_l3), ("L4 外链可点", _check_l4),
+              ("L5 D-M8-07 语义提示", _check_l5))
     with ExitStack() as stack:
         # socket 双重封锁；发生任何请求都直接失败，不能假装成离线成功。
         for target in ("socket.socket.connect", "socket.socket.connect_ex", "socket.getaddrinfo"):

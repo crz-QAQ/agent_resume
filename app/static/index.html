@@ -173,6 +173,7 @@
     .learning-material a { color: #245ca6; text-decoration: underline; overflow-wrap: anywhere; }
     .learning-material code { font-family: Consolas, "Courier New", monospace; overflow-wrap: anywhere; }
     .material-rating { color: #8c631e; letter-spacing: .05em; }
+    .semantic-badge { display: inline-block; margin-left: 8px; padding: 1px 6px; border-radius: 4px; background: #eef2f6; color: #68788a; font-size: 12px; }
     #revise-downloads { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
     #revise-resume-download[aria-disabled="true"] { background: #d8dee6; color: #657384; cursor: not-allowed; pointer-events: none; }
     #revise-no-resume { flex-basis: 100%; margin: 0; }
@@ -757,6 +758,7 @@
           card.append(element("p", gap.why, "hint"));
           for (const material of gap.materials || []) {
             const row = element("div", "", "learning-material"); row.append(materialTitle(material));
+            if (gap.meta?.matched_by === "semantic") row.append(element("span", "语义推荐", "semantic-badge"));
             const kind = material.kind === "external" ? "外部链接 · 需联网" : "本地材料";
             const score = material.quality;
             const rating = Number.isInteger(score) && score >= 1 && score <= 5 ? "★".repeat(score) + "☆".repeat(5 - score) + " " + score + "/5" : "评分待核实";

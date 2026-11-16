@@ -43,6 +43,7 @@ SEVERITY_LABELS = {"high": "高", "medium": "中", "low": "低"}
 UPLIFT_INTRO = ("本次改写只优化表达，分数基本不变 —— 因为硬性分由年限/学历/技能命中决定，"
                 "语义分由「JD 职责是否被覆盖」决定，两者都不看措辞。想涨分，做下面这几件事。")
 LEARNING_INTRO = "以下是你本次简历里没有体现、但 JD 明确要求的能力。改简历不能替代学能力，这里给出对应的学习材料。"
+SEMANTIC_RECOMMENDATION_NOTE = "系统按语义相似推荐，请自行判断是否对得上"
 ZERO_DELTA_NOTE = ("本次改动不影响分数：硬性看事实（年限/学历/技能命中），语义看覆盖，"
                    "两者都不看措辞 —— 具体怎么才能涨分，见第 9 章。")
 
@@ -252,6 +253,8 @@ def _learning_card(gap: LearningGap, styles: dict) -> Table:
             # 只有确实出现本地材料时才加载等宽字体，不影响 M7 字体和启动开销。
             code = ParagraphStyle("material_path", parent=styles["cell"], fontName=pdf_font.get_monospace_font())
             content.append(Paragraph(_field(material.locator, limit=500), code))
+        if gap.meta.get("matched_by") == "semantic":
+            content.append(Paragraph(SEMANTIC_RECOMMENDATION_NOTE, styles["mutedcell"]))
     if not gap.materials:
         content.append(Paragraph("暂无对应材料（材料库未收录）", styles["body"]))
     # 每个段落使用独立表格行，便于真实字体度量换行；整张表由调用方保页。

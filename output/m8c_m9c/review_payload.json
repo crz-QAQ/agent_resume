@@ -1,5 +1,5 @@
 {
-  "review_id": "1edabbf54ac44b6a8c40850def410f5a",
+  "review_id": "3f21b2cb0c9d4439a289d0f076974a89",
   "report": {
     "issues": [
       {
@@ -9,10 +9,10 @@
         "location": "其他 · 第 1 段",
         "original_text": "候选人  |  男  |  1994 年  |  现居深圳  |  求职意向：后端开发工程师 / AI 应用工程（FDE）",
         "suggested_text": "",
-        "why": "JD 要求本科及后端岗位基本可联系信息，原句只有姓名、性别、年份与城市，缺手机或邮箱，招聘方无法联系",
-        "gain": "从无法联系到可联系：补上手机或邮箱后，简历才具备投递闭环",
+        "why": "JD 要求本科及后端岗位基本联系信息，原句只有姓名、性别、出生年、城市与求职意向，缺手机或邮箱，招聘方无法联系",
+        "gain": "从无法联系到具备可联系的手机或邮箱信息",
         "jd_evidence": "本科",
-        "risk_note": "如确有相关经历请补充，否则不建议写；联系方式须为本人真实可用信息",
+        "risk_note": "如确有相关经历请补充，否则不建议写；联系方式须为本人真实信息",
         "score_impact": 0
       },
       {
@@ -22,10 +22,10 @@
         "location": "工作经历 · 第 1 段",
         "original_text": "2017.07 - 2021.06    深圳某某电子商务有限公司    后端开发工程师",
         "suggested_text": "",
-        "why": "JD 必备技能含 FastAPI；该段经历只体现 Go 与 MySQL，简历全文未出现 FastAPI 相关实践",
-        "gain": "从技能缺口到可核实：若确有 FastAPI 项目，补入后必备技能才有依据",
+        "why": "JD 必备技能列 FastAPI，简历技能与经历均未出现；原句只写公司与职位，无该技能线索",
+        "gain": "从技能清单缺 FastAPI 到核实后补充该技能事实",
         "jd_evidence": "FastAPI",
-        "risk_note": "如确有相关经历请补充，否则不建议写；不得把未用过的框架写成已有经历",
+        "risk_note": "如确有相关经历请补充，否则不建议写；不得把未用过的框架写入简历",
         "score_impact": 4
       },
       {
@@ -35,10 +35,10 @@
         "location": "工作经历 · 第 2 段",
         "original_text": "· 负责订单系统接口开发，使用 Go 与 MySQL 完成下单、支付、退款全链路接口；",
         "suggested_text": "",
-        "why": "JD 要求参与需求评审；原句只写接口开发与实现，未体现评审环节的参与",
-        "gain": "从只写开发到覆盖评审：补入评审参与后，职责链条才与 JD 对齐",
+        "why": "JD 要求参与需求评审，原句只写接口开发与实现，未体现评审环节的参与",
+        "gain": "从只写开发职责到补充需求评审参与事实",
         "jd_evidence": "参与需求评审",
-        "risk_note": "如确有相关经历请补充，否则不建议写；评审角色与频次须真实",
+        "risk_note": "如确有相关经历请补充，否则不建议写；评审角色须真实",
         "score_impact": 5
       },
       {
@@ -48,10 +48,10 @@
         "location": "工作经历 · 第 3 段",
         "original_text": "· 负责数据库查询性能优化：定位慢查询并重建索引，订单查询耗时从 2 秒降至 120 毫秒；",
         "suggested_text": "",
-        "why": "JD 要求设计并交付可维护的业务接口；原句只讲慢查询与索引优化，未体现接口设计与可维护性",
-        "gain": "从性能优化单点到接口设计交付：补入后职责覆盖更完整",
+        "why": "JD 要求设计并交付可维护的业务接口，原句只写查询优化，未体现接口设计与可维护性交付",
+        "gain": "从仅性能优化到补充接口设计与可维护交付事实",
         "jd_evidence": "设计并交付可维护的业务接口",
-        "risk_note": "如确有相关经历请补充，否则不建议写；可维护性做法须真实可述",
+        "risk_note": "如确有相关经历请补充，否则不建议写；可维护性须有真实做法支撑",
         "score_impact": 5
       },
       {
@@ -61,10 +61,10 @@
         "location": "工作经历 · 第 4 段",
         "original_text": "· 引入 Redis 缓存热点商品与订单状态，数据库访问量下降约 40%。",
         "suggested_text": "",
-        "why": "JD 要求排查线上故障；原句只写缓存引入与访问量下降，未体现故障排查经历",
-        "gain": "从优化成果到运维闭环：补入故障排查后，线上问题处理能力才有依据",
+        "why": "JD 要求排查线上故障，原句只写缓存引入与访问量下降，未体现故障排查经历",
+        "gain": "从只写优化结果到补充线上故障排查事实",
         "jd_evidence": "排查线上故障",
-        "risk_note": "如确有相关经历请补充，否则不建议写；故障类型与处理结果须真实",
+        "risk_note": "如确有相关经历请补充，否则不建议写；故障案例须真实可回查",
         "score_impact": 5
       },
       {
@@ -74,10 +74,10 @@
         "location": "工作经历 · 第 5 段",
         "original_text": "2021.07 - 至今    上海某某信息科技有限公司    高级后端工程师",
         "suggested_text": "",
-        "why": "JD 要求完善日志与发布流程；该段经历只列职位与公司，未出现日志或发布流程相关工作",
-        "gain": "从空白到可核实：补入日志与发布流程实践后，该职责才有对应事实",
+        "why": "JD 要求完善日志与发布流程，原句只有公司与职位，未体现日志或发布流程相关工作",
+        "gain": "从无日志与发布流程线索到核实后补充相关事实",
         "jd_evidence": "完善日志与发布流程",
-        "risk_note": "如确有相关经历请补充，否则不建议写；流程改进内容须真实",
+        "risk_note": "如确有相关经历请补充，否则不建议写；流程改进须真实参与",
         "score_impact": 5
       },
       {
@@ -87,10 +87,10 @@
         "location": "工作经历 · 第 6 段",
         "original_text": "· 负责支付系统重构，支撑日均 300 万笔交易，主导灰度上线与回滚预案；",
         "suggested_text": "",
-        "why": "JD 要求编写设计说明、测试与协作文档；原句只写重构与上线，未体现文档产出",
-        "gain": "从只写上线动作到覆盖文档交付：补入后协作与文档能力才有依据",
+        "why": "JD 要求编写设计说明、测试与协作文档，原句只写重构与上线，未体现文档编写",
+        "gain": "从只写上线动作到补充设计说明与测试文档事实",
         "jd_evidence": "编写设计说明、测试与协作文档",
-        "risk_note": "如确有相关经历请补充，否则不建议写；文档类型与用途须真实",
+        "risk_note": "如确有相关经历请补充，否则不建议写；文档产出须真实存在",
         "score_impact": 5
       }
     ],
@@ -156,11 +156,11 @@
     "meta": {
       "model": "fallback（厂商未透传）",
       "prompt_version": "revision_v1.1",
-      "cost_yuan": 0.00743248,
+      "cost_yuan": 0.00657248,
       "jd_source": "user_jd",
-      "candidate_count": 9,
+      "candidate_count": 8,
       "accepted_count": 7,
-      "rejected_count": 2,
+      "rejected_count": 1,
       "resume_chars": 634,
       "resume_truncated": false,
       "json_retries": 0,
@@ -169,21 +169,21 @@
       "model_accepted_count": 7,
       "injected_count": 0,
       "injection_skipped": [],
-      "elapsed_ms": 11577.494,
-      "cost_over_budget": true,
-      "learning_ms": 557.536,
-      "uplift_ms": 0.443,
+      "elapsed_ms": 11607.35,
+      "cost_over_budget": false,
+      "learning_ms": 553.129,
+      "uplift_ms": 0.437,
       "has_external_links": true,
       "learning_unavailable": false,
       "semantic_attempts": 3,
       "semantic_fallback": "used",
       "semantic_errors": {},
-      "revision_cost_yuan": 0.00549496,
+      "revision_cost_yuan": 0.00461096,
       "resume_cost_yuan": 0.00033724000000000004,
       "job_cost_yuan": 0.0005078000000000001,
-      "llm_cost_yuan": 0.00109248,
+      "llm_cost_yuan": 0.00111648,
       "llm_estimated": false,
-      "generated_at": "2026-11-14T09:44:07.858746+00:00",
+      "generated_at": "2026-11-16T01:29:04.475156+00:00",
       "profile_version": "1",
       "source": "user_jd",
       "confirmed": true,
@@ -220,8 +220,8 @@
     "medium": 5,
     "low": 0,
     "missing": 1,
-    "cost_yuan": 0.00743248,
-    "elapsed_ms": 11577.494,
+    "cost_yuan": 0.00657248,
+    "elapsed_ms": 11607.35,
     "resume_chars": 634,
     "jd_chars": 112
   },
@@ -311,32 +311,23 @@
         "gap": "排查线上故障",
         "why": "岗位「Go 后端开发工程师」的 JD 要求：排查线上故障",
         "severity": "medium",
-        "materials": [
-          {
-            "id": "fde-vector-search",
-            "title": "Getting Started - Chroma Docs",
-            "kind": "external",
-            "locator": "https://docs.trychroma.com/docs/overview/getting-started",
-            "tags": [
-              "Vector search",
-              "向量检索",
-              "文档检索"
-            ],
-            "level": "入门",
-            "quality": 5,
-            "verified_at": "2026-11-14",
-            "note": "补齐创建向量集合、写入文档与执行相似检索的上手能力"
-          }
-        ],
+        "materials": [],
         "meta": {
-          "matched_by": "semantic",
+          "matched_by": "none",
           "top1_id": "fde-vector-search",
           "top1_cos": 0.505865383336915,
           "top2_cos": 0.41794393425789683,
           "margin": 0.08792144907901817,
           "min_cos": 0.45,
           "min_margin": 0.03,
-          "model": "BAAI/bge-small-zh-v1.5"
+          "model": "BAAI/bge-small-zh-v1.5",
+          "rejected_semantic": [
+            {
+              "id": "fde-vector-search",
+              "cos": 0.505865383336915,
+              "reason": "no_shared_terms"
+            }
+          ]
         }
       },
       {
@@ -373,6 +364,7 @@
       }
     ],
     "unmatched": [
+      "排查线上故障",
       "完善日志与发布流程",
       "编写设计说明、测试与协作文档"
     ],
@@ -390,6 +382,7 @@
       "semantic_attempts": 3,
       "semantic_errors": {},
       "unmatched_reasons": {
+        "排查线上故障": "材料库暂无对应条目",
         "完善日志与发布流程": "材料库暂无对应条目",
         "编写设计说明、测试与协作文档": "材料库暂无对应条目"
       },
@@ -397,13 +390,22 @@
         "FastAPI": "family",
         "参与需求评审": "keyword",
         "设计并交付可维护的业务接口": "keyword",
-        "排查线上故障": "semantic",
+        "排查线上故障": "none",
         "完善日志与发布流程": "none",
         "编写设计说明、测试与协作文档": "none"
       },
+      "rejected_semantic": {
+        "排查线上故障": [
+          {
+            "id": "fde-vector-search",
+            "cos": 0.505865383336915,
+            "reason": "no_shared_terms"
+          }
+        ]
+      },
       "gap_count_before_limit": 6,
       "truncated_gaps": 0,
-      "materials_total": 4,
+      "materials_total": 3,
       "omitted_by_material_limit": 0
     }
   },

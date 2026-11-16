@@ -1,0 +1,15 @@
+{
+  "passed": true,
+  "semantic_badge": "语义推荐",
+  "title_sibling": true,
+  "keyword_family_none_badges": 0,
+  "rerender_clears_badges": true,
+  "rejected_candidate_hidden": true,
+  "mobile_width": 390,
+  "horizontal_overflow": 0,
+  "page_errors": [],
+  "badge_style": {
+    "color": "rgb(104, 120, 138)",
+    "background": "rgb(238, 242, 246)"
+  }
+}

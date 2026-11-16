@@ -320,9 +320,21 @@ def _semantic_document(material: Material) -> str:
     return f"{material.title}\n{' '.join(material.tags)}"
 
 
+def _semantic_shared_terms(gap: str, material: Material) -> list[str]:
+    """只接受连续两字中文或三字母英文共享子串，大小写不敏感。"""
+    # 按原文字段分别比较，不跨标点、空格或标签边界拼出共享词。
+    pieces = re.findall(r"[\u4e00-\u9fff]{2,}|[a-z]{3,}", gap.casefold())
+    terms = set()
+    for piece in pieces:
+        width = 2 if "\u4e00" <= piece[0] <= "\u9fff" else 3
+        terms.update(piece[index:index + width] for index in range(len(piece) - width + 1))
+    fields = [value.casefold() for value in [*material.tags, material.title, material.note]]
+    return sorted(term for term in terms if any(term in field for field in fields))
+
+
 def _local_semantic_match(gap: str, materials: list[Material], calls: dict[str, int],
                           audit: dict | None = None) -> list[Material]:
-    """仅当首位余弦与领先差距同时合格时采纳一条，否则保留未匹配。"""
+    """首位余弦、领先差距与共享词均合格时采纳一条，否则保留未匹配。"""
     if not materials:
         return []
     # 已知词已由精确/关键词层处理；未知孤立英文词可能是专名或错字，不靠向量猜测。
@@ -355,7 +367,15 @@ def _local_semantic_match(gap: str, materials: list[Material], calls: dict[str, 
                      min_cos=SEMANTIC_MIN_COS, min_margin=SEMANTIC_MIN_MARGIN, model=model.model_name)
     # 没有第二名时也无法核对相对优势，不把唯一候选误当作有充分区分度。
     if first >= SEMANTIC_MIN_COS and margin is not None and margin >= SEMANTIC_MIN_MARGIN:
-        return [materials[order[0]]]
+        candidate = materials[order[0]]
+        shared = _semantic_shared_terms(gap, candidate)
+        if shared:
+            if audit is not None:
+                audit["shared_terms"] = shared
+            return [candidate]
+        # 仅记录被共享词门槛拦下的原首位，不降门槛或改荐后续候选。
+        if audit is not None:
+            audit["rejected_semantic"] = [dict(id=candidate.id, cos=first, reason="no_shared_terms")]
     return []
 
 
@@ -418,6 +438,8 @@ def build_learning_plan(*, diagnosis: DiagnosisReport, hard: HardScore | None,
                 semantic_fallback=fallback_status, semantic_attempts=attempts,
                 semantic_errors=fallback_errors, unmatched_reasons=reasons,
                 matched_by={row.gap: row.meta["matched_by"] for row in gaps},
+                rejected_semantic={row.gap: row.meta["rejected_semantic"] for row in gaps
+                                   if row.meta.get("rejected_semantic")},
                 gap_count_before_limit=len(sources), truncated_gaps=max(0, len(sources) - MAX_GAPS),
                 materials_total=total, omitted_by_material_limit=omitted)
     return LearningPlan(gaps=gaps, unmatched=unmatched, meta=meta)

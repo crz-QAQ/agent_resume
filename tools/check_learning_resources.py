@@ -1,4 +1,4 @@
-"""离线执行任务书 M8a ①~⑩，包含反例、纯函数边界和语义兜底显式失败。"""
+"""离线执行 M8a 与 D-M8-02～07 回归，包含真实向量、共享词闸门和 PDF 提示。"""
 
 from __future__ import annotations
 
@@ -617,8 +617,95 @@ def _check_all_match_methods() -> str:
     return "family/keyword/semantic/none四值齐全；逐gap.meta与plan.meta一致；同一模型、2次编码、0重排、0元"
 
 
+def _check_semantic_shared_gate() -> str:
+    """㉔ 真模型的 AI 编程误配必须被共享词门槛拒绝，并保留原候选余弦。"""
+    _real_embedding_model()
+    gap = "AI编程工具"
+    # 使用完整生产材料库与真实 bge 向量，不能靠缩小候选库制造拒绝结果。
+    plan = build_learning_plan(**_inputs([gap]), semantic_fallback=True)
+    row = plan.gaps[0]
+    # 同时检查材料、逐项状态及 unmatched，避免仅改显示标记而仍附上误配材料。
+    _expect(row.materials == [] and row.meta["matched_by"] == "none" and plan.unmatched == [gap],
+            "AI编程工具仍被语义配到 Prompt 指南")
+    _expect(row.meta["top1_cos"] >= .45 and row.meta["margin"] >= .03, "没有实际覆盖余弦通过后的拒绝路径")
+    # 被拒分数应精确沿用原始 top1，不能填零或硬编码历史测量值。
+    rejected = row.meta["rejected_semantic"]
+    _expect(len(rejected) == 1 and rejected[0]["id"] == "fde-prompt-engineering"
+            and math.isfinite(rejected[0]["cos"]) and rejected[0]["cos"] == row.meta["top1_cos"]
+            and rejected[0]["reason"] == "no_shared_terms", "拒绝记录缺少原材料 id、真实余弦或原因")
+    _expect(plan.meta["matched_by"][gap] == "none" and plan.meta["rejected_semantic"] == {gap: rejected}
+            and not plan.meta["semantic_errors"], "拒绝审计未汇总或被误记为模型故障")
+    # 各字段独立验证最短长度：不能靠单字、AI、跨空格或跨标签拼接放行。
+    for field in ("tags", "title", "note"):
+        values = dict(tags=["zzzz"], title="zzzz", note="zzzz")
+        values[field] = ["编程", "PrOmPt"] if field == "tags" else "编程 PrOmPt"
+        material = _material(**values)
+        _expect(module._semantic_shared_terms("辅助编程", material) == ["编程"], f"{field} 两字共享未通过")
+        _expect(module._semantic_shared_terms("PROMPT设计", material), f"{field} 英文大小写不敏感失效")
+        for invalid in ("编工具", "AI工具", "PR工具", "编 程", "P R O"):
+            _expect(not module._semantic_shared_terms(invalid, material), f"{field} 放过短片段：{invalid}")
+    _expect(not module._semantic_shared_terms("编程", _material(tags=["编", "程"], title="zzzz", note="zzzz")),
+            "把不同标签的单字拼成了共享词")
+    _expect(module._semantic_shared_terms("abc工具", _material(tags=["xABCy"], title="zzzz", note="zzzz")) == ["abc"],
+            "三个英文字母的共享子串未通过")
+    REAL_SAMPLES["rejected_ai_coding"] = plan.model_dump()
+    return f"AI编程工具 → none/unmatched；拒绝 fde-prompt-engineering cos={rejected[0]['cos']:.6f}；中文≥2字/英文≥3字母，含大小写与字段边界"
+
+
+def _check_semantic_pdf_note() -> str:
+    """㉕ 真语义推荐读回 PDF 提示，关键词与同族材料的独立 PDF 均无提示。"""
+    from io import BytesIO
+    import pdfplumber
+    from app.revision_pdf import render_review_pdf
+    from tools.check_revision_pdf import _inputs as pdf_inputs
+
+    # 仅借用合成报告骨架；学习计划仍经过生产匹配器，匹配方式不能手工伪装。
+    _real_embedding_model()
+    note = "系统按语义相似推荐，请自行判断是否对得上"
+    samples = (("把客户想解决的问题整理清楚，再列出优先顺序和成功标准", "semantic"),
+               ("建立评测和反馈机制并根据真实业务结果迭代", "keyword"), ("Go", "family"))
+    output = PROJECT_ROOT / "output/pdf/d_m8_07"
+    output.mkdir(parents=True, exist_ok=True)
+    for gap, method in samples:
+        plan = build_learning_plan(**_inputs([gap]), semantic_fallback=True)
+        _expect(plan.gaps[0].meta["matched_by"] == method and plan.gaps[0].materials, f"{method} 样本未真正匹配")
+        report, diagnosis, hard = pdf_inputs()
+        # 每种方式单独生成报告，防止关键词的误提示被另一条语义提示掩盖。
+        data = render_review_pdf(report, diagnosis, job_title=report.profile.title, resume_name="语义提示验收",
+                                 hard=hard, learning_plan=plan)
+        with pdfplumber.open(BytesIO(data)) as document:
+            # 按真实 PDF 自动换行去空白，再比较完整指定文案。
+            text = "".join("".join((page.extract_text() or "").split()) for page in document.pages)
+        _expect((note in text) == (method == "semantic"), f"{method} 的 PDF 提示条件不符")
+        # 保存刚读回的同一份字节，供渲染目检；不另生成一份不同报告。
+        (output / f"{method}_learning.pdf").write_bytes(data)
+    return "真语义样本 PDF 可读完整提示；keyword/family 两份 PDF 均无该句"
+
+
+def _check_keyword_regression() -> str:
+    """㉖ 原评测、业务识别和流程梳理三条的材料与匹配方式均不受新闸门影响。"""
+    samples = [("建立评测和反馈机制，通过真实业务结果判断方案是否有效，并打待续迭代", "fde-evaluation"),
+               ("深入一线业务，与业务负责人和一线员工共同工作，识别真正值得AI借鉴的问题", "fde-requirements"),
+               ("梳理业务流程、关键判断和专业经验，将其转化为AI可以理解和执行的场景方案", "fde-requirements")]
+    # 直接封锁共享词与语义入口，确保精确层没有新增限制或模型依赖。
+    with patch.object(module, "_semantic_shared_terms", side_effect=AssertionError("keyword 不应受共享词门槛限制")), \
+            patch.object(module, "_local_semantic_match", side_effect=AssertionError("keyword 不应调用语义")):
+        plan = build_learning_plan(**_inputs([gap for gap, _ in samples]), semantic_fallback=True)
+        family = build_learning_plan(**_inputs(["Go"]), semantic_fallback=True)
+    # 使用已登记的三句真实 JD 原话，逐项比较确定的材料 id 与匹配方式。
+    for row, (_, expected) in zip(plan.gaps, samples):
+        _expect(row.meta["matched_by"] == "keyword" and [item.id for item in row.materials] == [expected], "原三条 keyword 回归")
+    _expect(plan.meta["semantic_attempts"] == 0 and plan.meta["rejected_semantic"] == {} and not plan.unmatched,
+            "关键词精确命中受到语义门槛影响")
+    _expect(family.gaps[0].meta["matched_by"] == "family" and [item.id for item in family.gaps[0].materials] == ["go-official-doc"],
+            "同族匹配受共享词门槛影响")
+    # 审计快照保留原关键词与返回材料，方便与 D-M8-06 的真实记录逐项对照。
+    REAL_SAMPLES["keyword_regression"] = plan.model_dump()
+    return "评测→fde-evaluation；业务识别/流程梳理→fde-requirements；三条均keyword、模型0次；family亦绕过新门槛"
+
+
 def main() -> int:
-    """执行原十组及五组缺陷回归，打印结果与最终通过数，失败返回非零。"""
+    """执行全部二十六组检查，打印结果与最终通过数，失败返回非零。"""
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
     # 编号与任务书一一对应；分组中的任何断言失败都会影响最终退出码。
@@ -634,7 +721,10 @@ def main() -> int:
               ("⑱ D-M8-05 语义兜底开关", _check_semantic_switch),
               ("⑲ D-M8-06 评测关键词", _check_keyword_evaluation), ("⑳ D-M8-06 业务关键词", _check_keyword_business),
               ("㉑ D-M8-06 诚实未匹配", _check_honest_semantic_none), ("㉒ D-M8-06 真余弦对", _check_real_cosine_pairs),
-              ("㉓ D-M8-06 四种匹配方式", _check_all_match_methods)]
+              ("㉓ D-M8-06 四种匹配方式", _check_all_match_methods),
+              ("㉔ D-M8-07 共享词门槛", _check_semantic_shared_gate),
+              ("㉕ D-M8-07 PDF 语义提示", _check_semantic_pdf_note),
+              ("㉖ D-M8-07 keyword 不变", _check_keyword_regression)]
     passed = 0  # 只在 action 实际完成后递增，不把跳过算作通过。
     with ExitStack() as stack:
         # 真模型使用已有权重，整套验收禁止联网或下载，避免把远端响应当作本地分数。
@@ -649,7 +739,7 @@ def main() -> int:
             else:
                 passed += 1
                 print(f"{label}：通过；{detail}", flush=True)
-    output = PROJECT_ROOT / "output/d_m8_06"
+    output = PROJECT_ROOT / "output/d_m8_07"
     # 取证包含真模型浮点值，后续交付直接读此文件而非复制一组手填示例。
     output.mkdir(parents=True, exist_ok=True)
     (output / "real_model_samples.json").write_text(json.dumps(REAL_SAMPLES, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
