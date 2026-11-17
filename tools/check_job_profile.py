@@ -1,4 +1,4 @@
-"""离线检查 M2 岗位画像的十四组契约、隔离、确认与确定性要求。
+"""离线检查 M2 岗位画像的十八组契约、隔离、确认与确定性要求。
 
 失败逐项打印哪条、期望、实际；末行汇总通过数，性能不达标也返回非零。
 """
@@ -337,8 +337,16 @@ def _check_determinism() -> str:
     return "三次 must_have/职责逐字一致；最长及等长匹配确定；" + _quality()
 
 
+def _check_real_title(title: str, family: str) -> str:
+    """核对真实岗位名及期望族，不通过模板反推期望值。"""
+    # 与原八族、低置信和最长匹配回归一起运行，防止新增标签抢走后端岗位。
+    expected = (family, "精确")
+    _equal(f"{title}/真实写法", expected, match_family(title))
+    return f"{title!r} → {expected!r}"
+
+
 def main() -> int:
-    """运行十四组；无参数，返回 0/1，失败打印具体条目、期望与实际并继续其余组。"""
+    """运行十八组；无参数，返回 0/1，失败打印具体条目、期望与实际并继续其余组。"""
     started = perf_counter()
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
@@ -349,7 +357,12 @@ def main() -> int:
               ("⑦ 默认状态与指纹", _check_hash), ("⑧ 无编辑确认", _check_confirm),
               ("⑨ 编辑确认", _check_edits), ("⑩ 画像变更", _check_stale_hash),
               ("⑪ 非法编辑", _check_illegal_edits), ("⑫ 强制确认", _check_required_confirmation),
-              ("⑬ 报告声明", _check_banner), ("⑭ 确定性与规范", _check_determinism))
+              ("⑬ 报告声明", _check_banner), ("⑭ 确定性与规范", _check_determinism),
+              # 四条新增用例各自计数，原十四组及其断言全部保留。
+              ("⑮ AI 业务落地专家", lambda: _check_real_title("AI 业务落地专家", "delivery")),
+              ("⑯ AI 应用工程师", lambda: _check_real_title("AI 应用工程师", "delivery")),
+              ("⑰ AI 落地", lambda: _check_real_title("AI 落地", "delivery")),
+              ("⑱ Java 后端工程师", lambda: _check_real_title("Java 后端工程师", "backend")))
     # 汇总业务与规范断言，耗时另作退出条件，二者均须满足才返回成功。
     passed = 0
     for label, check in groups:

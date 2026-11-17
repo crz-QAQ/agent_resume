@@ -1,0 +1,294 @@
+{
+  "resume_file": "D:\\HermesDoc\\简历修改\\蔡荣祖_简历_Word版.docx",
+  "jd_file": "D:\\HermesDoc\\scratch\\beike_jd.txt",
+  "has_jd": true,
+  "source": "inferred",
+  "profile_input": {
+    "title": "AI 业务落地专家",
+    "source": "inferred",
+    "confirmed": false,
+    "must_have": [
+      "理解目标岗位的业务目标与基本工作流程",
+      "具备完成岗位任务所需的基础知识与工具使用能力",
+      "能够清晰沟通、协作推进并记录工作过程",
+      "能够分析问题、学习新知识并对工作结果进行复核"
+    ],
+    "responsibilities": [
+      "澄清工作目标并制定执行计划",
+      "协作完成岗位相关任务并同步进展",
+      "记录工作结果、问题与待确认事项",
+      "根据反馈复盘并改进工作方法"
+    ],
+    "note": "以下要求由系统按岗位名称推测，非岗位真实 JD，仅供参考；未匹配到已知岗位族，置信度低，请务必贴真实 JD"
+  },
+  "hard_missing_skills": [
+    {
+      "item": "必备技能：知识库",
+      "type": "missing_skill",
+      "deduct": 4,
+      "jd_evidence": "知识库",
+      "resume_evidence": "简历未提及",
+      "severity": "high"
+    },
+    {
+      "item": "必备技能：工作流",
+      "type": "missing_skill",
+      "deduct": 4,
+      "jd_evidence": "工作流",
+      "resume_evidence": "简历未提及",
+      "severity": "high"
+    },
+    {
+      "item": "必备技能：Al编程工具",
+      "type": "missing_skill",
+      "deduct": 3,
+      "jd_evidence": "Al编程工具",
+      "resume_evidence": "简历未提及",
+      "severity": "high"
+    }
+  ],
+  "part_counts": {
+    "hr": 6,
+    "tech": 6,
+    "scenario": 2,
+    "project": 2
+  },
+  "basis_sources": {
+    "resume": 13,
+    "jd": 3,
+    "profile": 0
+  },
+  "basis": [
+    {
+      "index": 1,
+      "part": "hr",
+      "category": "motivation",
+      "basis": "深圳市恒祥达人力资源有限公司（自研） | 后端开发工程师 | 2024.10-至今",
+      "basis_source": "resume",
+      "difficulty": 2,
+      "focus": "离职或转岗动机",
+      "flag": null,
+      "anchor": {},
+      "traceable": true
+    },
+    {
+      "index": 2,
+      "part": "hr",
+      "category": "salary",
+      "basis": "期望薪资：13-15K ",
+      "basis_source": "resume",
+      "difficulty": 2,
+      "focus": "薪酬预期与岗位条件",
+      "flag": null,
+      "anchor": {
+        "basis_fallback": "salary 使用池内非空原句"
+      },
+      "traceable": true
+    },
+    {
+      "index": 3,
+      "part": "hr",
+      "category": "plan",
+      "basis": "求职意向：Golang开发工程师 ",
+      "basis_source": "resume",
+      "difficulty": 2,
+      "focus": "职业规划与岗位选择",
+      "flag": null,
+      "anchor": {},
+      "traceable": true
+    },
+    {
+      "index": 4,
+      "part": "hr",
+      "category": "collaboration",
+      "basis": "主导企业管理系统/HR平台/SaaS平台多端后端开发，用PHP/ThinkPHP、Golang/Gin搭建核心模块，设计业务逻辑，打通跨\t平台业务流转。",
+      "basis_source": "resume",
+      "difficulty": 2,
+      "focus": "团队协作与冲突处理",
+      "flag": null,
+      "anchor": {},
+      "traceable": true
+    },
+    {
+      "index": 5,
+      "part": "hr",
+      "category": "career_switch",
+      "basis": "3年工作经验 | 求职意向：Golang开发工程师 | 期望薪资：13-15K | 期望城市：深圳",
+      "basis_source": "resume",
+      "difficulty": 2,
+      "focus": "跨行选择的真实动机",
+      "flag": null,
+      "anchor": {
+        "career_switch": true,
+        "career_switch_reason": "求职意向岗位族 backend 与目标族 delivery 不同"
+      },
+      "traceable": true
+    },
+    {
+      "index": 6,
+      "part": "hr",
+      "category": "timeline",
+      "basis": "使用 Jenkins 搭建自动化测试环境，提升测试效率与覆盖率 | 2024.04-2024.08",
+      "basis_source": "resume",
+      "difficulty": 2,
+      "focus": "时间安排与经历事实澄清",
+      "flag": null,
+      "anchor": {
+        "evidence": [
+          "奇安信数据安全（深圳）有限公司 | 测试工程师 | 2024.04-2024.08",
+          "参与堡垒机多版本系统测试，覆盖管理端、代理端、客户端全模块功能、性能及边界测试 | 2024.04-2024.08",
+          "使用 Jenkins 搭建自动化测试环境，提升测试效率与覆盖率 | 2024.04-2024.08",
+          "深圳市恒祥达人力资源有限公司（自研） | 后端开发工程师 | 2024.10-至今"
+        ]
+      },
+      "traceable": true
+    },
+    {
+      "index": 7,
+      "part": "tech",
+      "category": "tech_depth",
+      "basis": "3. 熟悉大模型使用：熟练使用各类Agent，并基于各个LLM的擅长点，分别完成重复性后端业务、前端页面、测试脚本的开发。",
+      "basis_source": "resume",
+      "difficulty": 2,
+      "focus": "核心必备技能的理解深度",
+      "flag": null,
+      "anchor": {
+        "skill": "Agent"
+      },
+      "traceable": true
+    },
+    {
+      "index": 8,
+      "part": "tech",
+      "category": "tech_gap",
+      "basis": "使用大模型、Agent、知识库、工作流及相关AI工具,快速完成原型搭建和效果验证;",
+      "basis_source": "jd",
+      "difficulty": 2,
+      "focus": "缺口技能的迁移与补齐思路",
+      "flag": "简历未提及，考察迁移能力",
+      "anchor": {
+        "skill": "知识库",
+        "jd_lines": [
+          "使用大模型、Agent、知识库、工作流及相关AI工具,快速完成原型搭建和效果验证;",
+          "熟悉主流大模型及AI应用方式,实际使用过Agent、知识库、工作流或Al编程工具;",
+          "独立完成过大模型应用、Agent、知识库或内部效率工具;"
+        ],
+        "missing_skill": true
+      },
+      "traceable": true
+    },
+    {
+      "index": 9,
+      "part": "tech",
+      "category": "impl_detail",
+      "basis": "用CodeX优化代码，并基于不同LLM的特点，分别使用不同LLM对前端与后端代码进行完善与进行重复性工作",
+      "basis_source": "resume",
+      "difficulty": 2,
+      "focus": "具体实现中的关键技术细节",
+      "flag": null,
+      "anchor": {},
+      "traceable": true
+    },
+    {
+      "index": 10,
+      "part": "tech",
+      "category": "tradeoff",
+      "basis": "1. 后端开发：熟悉 Golang 及 Gin 框架，熟练掌握 MySQL、Redis、RabbitMQ 等中间件技术，具备接口设计与系统架构设计能力；",
+      "basis_source": "resume",
+      "difficulty": 2,
+      "focus": "同族技术方案的选择与取舍",
+      "flag": null,
+      "anchor": {
+        "skill": "RabbitMQ",
+        "alternative": "kafka"
+      },
+      "traceable": true
+    },
+    {
+      "index": 11,
+      "part": "tech",
+      "category": "debug",
+      "basis": "3. 负责企业资金与合同链路：微信支付定时任务拉取，招行子账户异步回调；",
+      "basis_source": "resume",
+      "difficulty": 2,
+      "focus": "生产排障视角下的证据与定位",
+      "flag": null,
+      "anchor": {},
+      "traceable": true
+    },
+    {
+      "index": 12,
+      "part": "tech",
+      "category": "growth",
+      "basis": "1、熟悉 Golang生态技术栈和 PHP生态技术栈，覆盖后端开发、API 集成等领域；",
+      "basis_source": "resume",
+      "difficulty": 2,
+      "focus": "新知识的验证与实际落地",
+      "flag": null,
+      "anchor": {
+        "skill": "Python"
+      },
+      "traceable": true
+    },
+    {
+      "index": 13,
+      "part": "scenario",
+      "category": "scenario_design",
+      "basis": "深入一线业务,与业务负责人和一线员工共同工作,识别真正值得AI借鉴的问题。",
+      "basis_source": "jd",
+      "difficulty": 2,
+      "focus": "业务需求拆解与最小交付方案",
+      "flag": null,
+      "anchor": {
+        "responsibility": "深入一线业务,与业务负责人和一线员工共同工作,识别真正值得AI借鉴的问题。",
+        "cos": 0.42
+      },
+      "traceable": true
+    },
+    {
+      "index": 14,
+      "part": "scenario",
+      "category": "scenario_risk",
+      "basis": "熟悉主流大模型及AI应用方式,实际使用过Agent、知识库、工作流或Al编程工具;",
+      "basis_source": "jd",
+      "difficulty": 2,
+      "focus": "客户现场能力缺口与风险沟通",
+      "flag": null,
+      "anchor": {
+        "risk_type": "missing_skill"
+      },
+      "traceable": true
+    },
+    {
+      "index": 15,
+      "part": "project",
+      "category": "project_random_1",
+      "basis": "1. 主导企业端员工与薪资链路模块：MySQL 分库企业隔离，支撑多企业数据安全与水平扩展；",
+      "basis_source": "resume",
+      "difficulty": 2,
+      "focus": "真实项目中的个人职责与结果",
+      "flag": null,
+      "anchor": {
+        "project": "企业端员工与薪资链路模块",
+        "period": "2024.10-至今"
+      },
+      "traceable": true
+    },
+    {
+      "index": 16,
+      "part": "project",
+      "category": "project_random_2",
+      "basis": "参与堡垒机多版本系统测试，覆盖管理端、代理端、客户端全模块功能、性能及边界测试 | 2024.04-2024.08",
+      "basis_source": "resume",
+      "difficulty": 2,
+      "focus": "真实项目中的个人职责与结果",
+      "flag": null,
+      "anchor": {
+        "project": "堡垒机多版本系统",
+        "period": "2024.04-2024.08",
+        "basis_fallback": "project_random_2 使用池内非空原句"
+      },
+      "traceable": true
+    }
+  ]
+}

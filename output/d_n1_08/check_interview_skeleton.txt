@@ -1,0 +1,69 @@
+01 通过：① 完整规则样例：十五槽位，6/2/2 技术面及五条 HR。
+02 通过：② 分区顺序固定，六个技术考点严格遵循 TECH_CATEGORY_ORDER。
+03 通过：③ 逐条在对应原文核验 basis，悬空依据零条。
+04 通过：④ 技术依据互不复用；稀疏及空输入必须抛错，不产出虚假依据。
+05 通过：⑤ 技能缺口槽位始终带固定迁移能力标记。
+06 通过：⑥ 同 seed 抽同一对，换 seed 至少一次改变，且全局随机状态不变。
+07 通过：⑦ 项目名称不同且时间不重叠，覆盖相邻行日期及共享月份边界。
+08 通过：⑧ 纯 Go 合成简历 × AI 业务落地专家：判定跨行并保留依据。
+09 通过：⑨ 纯 Go 合成简历 × Golang 后端开发工程师：不出跨行槽位。
+10 通过：⑩ 同输入三次完整输出一致；种子优先级、难度分维与六成边界正确。
+11 通过：⑪ 构建阶段禁止文件、环境、网络和全局随机调用，单次小于 100ms。
+12 通过：⑫ 项目缺失仅用原文岗位标题并标记人工补充；标题用尽必须报错。
+13 通过：⑬ 所有分区使用统一入口；质量过滤后按最长技术句、非空原句降级。
+14 通过：⑭ 真简历抽出至少三段项目，名称归一化可查，教育段零条。
+15 通过：⑮ HR 类别无重复，时间发现合并为一题并保留全部原始证据。
+16 通过：⑯ 构造十五条与真简历十六条依据全部参与去重，零豁免、零重复。
+17 通过：⑰ tech_gap 只用含该技能的 JD 行，来源为 jd，并保留完整 skill 与 jd_lines。
+18 通过：⑱ scenario_design 回查未覆盖职责；各语义池耗尽后不向其他池借句。
+19 通过：⑲ 重复依据独立断言与模型均报错；basis_source 必填且不可为 None。
+20 通过：⑳ 四类说明文字逐项拒绝；即使文字出现在原文中也不能当作依据。
+21 通过：㉑ 污染末尾槽位必须触发原文硬错误；末尾按实际命中重新推导来源。
+22 通过：㉒ 两份真实 DOCX 逐条核验原文、说明文字、来源、唯一性及三次完整一致。
+23 通过：㉓ 无 JD 且无画像、JD 确无技能、技能池过滤空分别硬拒绝；短职责仍可回查。
+24 通过：㉔ ★ 真简历 × 真 JD 必须 build 成功，16 条可追溯；职责及年限允许跨行。
+25 通过：㉕ inferred 不传 jd_text 成功，tech_gap / scenario_design 引用画像且带推测 flag。
+26 通过：㉖ ★ 传 jd_text 时 profile 来源为零，画像 source 只影响结果标注。
+27 通过：㉗ ★ tech_gap 绑定 missing_skill 的知识库，JD 原行非空且不能借画像补票。
+28 通过：㉘ ★ 无 JD 的画像依据逐条回查，知识库取条目本身，通用模板及跨条拼句硬拒绝。
+计时口径：最慢单次 build_skeleton，不含文件读取与输入准备
+通过 28/28；耗时 36.55ms；模型调用 0；成本 0 元
+真简历 basis 明细：D:\pycharm_projects\resume-agent\tools\test_files\go_backend_resume.docx
+01 motivation | basis_source=resume | basis='2021.07 - 至今    上海某某信息科技有限公司    高级后端工程师'
+02 salary | basis_source=jd | basis='AI业务落地专家(FDE)'
+03 plan | basis_source=resume | basis='求职意向：后端开发工程师 / AI 应用工程（FDE）'
+04 collaboration | basis_source=resume | basis='· 用 Python 与 LangChain 搭建文档知识库问答，基于 RAG 检索把人工客服问题量降低约 30%。'
+05 career_switch | basis_source=resume | basis='王浩  |  男  |  1994 年  |  现居深圳  |  求职意向：后端开发工程师 / AI 应用工程（FDE）'
+06 timeline | basis_source=resume | basis='2021.07 - 至今'
+07 tech_depth | basis_source=resume | basis='· 负责数据库查询性能优化：定位慢查询并重建索引，订单查询耗时从 2 秒降至 120 毫秒；'
+08 tech_gap | basis_source=jd | basis='使用大模型、Agent、知识库、工作流及相关AI工具,快速完成原型搭建和效果验证;'
+09 impl_detail | basis_source=resume | basis='· 引入 Redis 缓存热点商品与订单状态，数据库访问量下降约 40%。'
+10 tradeoff | basis_source=resume | basis='语言：Go、Python、PHP    数据库：MySQL、Redis    中间件：Kafka、Docker'
+11 debug | basis_source=resume | basis='· 负责客户现场 AI 交付：独立完成需求确认、知识库搭建、接口联调与上线验收，服务 20+ 家客户；'
+12 growth | basis_source=resume | basis='框架与工具：Gin、LangChain、Dify、Git、Linux'
+13 scenario_design | basis_source=jd | basis='深入一线业务,与业务负责人和一线员工共同工作,识别真正值得AI借鉴的问题。'
+14 scenario_risk | basis_source=jd | basis='熟悉主流大模型及AI应用方式,实际使用过Agent、知识库、工作流或Al编程工具;'
+15 project_random_1 | basis_source=resume | basis='· 负责订单系统接口开发，使用 Go 与 MySQL 完成下单、支付、退款全链路接口；'
+16 project_random_2 | basis_source=resume | basis='· 负责支付系统重构，支撑日均 300 万笔交易，主导灰度上线与回滚预案；'
+结构={'hr': 6, 'tech': 6, 'scenario': 2, 'project': 2}；来源={'resume': 12, 'jd': 4, 'profile': 0}；悬空=0；重复=0；说明文字=0
+真简历 basis 明细：D:\HermesDoc\简历修改\蔡荣祖_简历_Word版.docx
+01 motivation | basis_source=resume | basis='深圳市恒祥达人力资源有限公司（自研） | 后端开发工程师 | 2024.10-至今'
+02 salary | basis_source=resume | basis='期望薪资：13-15K '
+03 plan | basis_source=resume | basis='求职意向：Golang开发工程师 '
+04 collaboration | basis_source=resume | basis='主导企业管理系统/HR平台/SaaS平台多端后端开发，用PHP/ThinkPHP、Golang/Gin搭建核心模块，设计业务逻辑，打通跨\t平台业务流转。'
+05 career_switch | basis_source=resume | basis='3年工作经验 | 求职意向：Golang开发工程师 | 期望薪资：13-15K | 期望城市：深圳'
+06 timeline | basis_source=resume | basis='使用 Jenkins 搭建自动化测试环境，提升测试效率与覆盖率 | 2024.04-2024.08'
+07 tech_depth | basis_source=resume | basis='3. 熟悉大模型使用：熟练使用各类Agent，并基于各个LLM的擅长点，分别完成重复性后端业务、前端页面、测试脚本的开发。'
+08 tech_gap | basis_source=jd | basis='使用大模型、Agent、知识库、工作流及相关AI工具,快速完成原型搭建和效果验证;'
+09 impl_detail | basis_source=resume | basis='用CodeX优化代码，并基于不同LLM的特点，分别使用不同LLM对前端与后端代码进行完善与进行重复性工作'
+10 tradeoff | basis_source=resume | basis='1. 后端开发：熟悉 Golang 及 Gin 框架，熟练掌握 MySQL、Redis、RabbitMQ 等中间件技术，具备接口设计与系统架构设计能力；'
+11 debug | basis_source=resume | basis='3. 负责企业资金与合同链路：微信支付定时任务拉取，招行子账户异步回调；'
+12 growth | basis_source=resume | basis='1、熟悉 Golang生态技术栈和 PHP生态技术栈，覆盖后端开发、API 集成等领域；'
+13 scenario_design | basis_source=jd | basis='深入一线业务,与业务负责人和一线员工共同工作,识别真正值得AI借鉴的问题。'
+14 scenario_risk | basis_source=jd | basis='熟悉主流大模型及AI应用方式,实际使用过Agent、知识库、工作流或Al编程工具;'
+15 project_random_1 | basis_source=resume | basis='1. 主导企业端员工与薪资链路模块：MySQL 分库企业隔离，支撑多企业数据安全与水平扩展；'
+16 project_random_2 | basis_source=resume | basis='参与堡垒机多版本系统测试，覆盖管理端、代理端、客户端全模块功能、性能及边界测试 | 2024.04-2024.08'
+结构={'hr': 6, 'tech': 6, 'scenario': 2, 'project': 2}；来源={'resume': 13, 'jd': 3, 'profile': 0}；悬空=0；重复=0；说明文字=0
+inferred 模式 tech_gap 明细（未传 jd_text）：
+画像输入：调用方提供的技能型条目（离线验收），不将 infer_profile 通用模板冒充具体技能
+source=inferred | basis_source=profile | skill='知识库' | flag='依据来自岗位画像（推测），非真实 JD' | basis='知识库'

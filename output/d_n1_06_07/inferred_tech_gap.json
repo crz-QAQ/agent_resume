@@ -1,0 +1,20 @@
+{
+  "source": "inferred",
+  "jd_text_provided": false,
+  "part": "tech",
+  "category": "tech_gap",
+  "basis": "掌握至少一种后端开发语言及其常用框架",
+  "basis_source": "profile",
+  "difficulty": 2,
+  "focus": "缺口技能的迁移与补齐思路",
+  "flag": "依据来自岗位画像（推测），非真实 JD",
+  "anchor": {
+    "skill": "掌握至少一种后端开发语言及其常用框架",
+    "profile_items": [
+      "掌握至少一种后端开发语言及其常用框架"
+    ],
+    "missing_skill": true,
+    "original_flag": "简历未提及，考察迁移能力"
+  },
+  "traceable": true
+}

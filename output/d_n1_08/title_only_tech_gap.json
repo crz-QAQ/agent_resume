@@ -1,0 +1,119 @@
+{
+  "resume_file": "D:\\HermesDoc\\简历修改\\蔡荣祖_简历_Word版.docx",
+  "source": "inferred",
+  "jd_text_provided": false,
+  "profile_input_kind": "supplied_skill_profile_fixture",
+  "profile_input": {
+    "title": "AI 业务落地专家",
+    "source": "inferred",
+    "confirmed": false,
+    "must_have": [
+      "Agent",
+      "知识库",
+      "工作流",
+      "AI编程工具"
+    ],
+    "responsibilities": [
+      "设计企业知识库检索与评测方案",
+      "验证 AI 工作流的运行与交付风险"
+    ],
+    "note": "按岗位名提供的待确认技能型画像（离线验收输入），非真实 JD"
+  },
+  "hard_missing_skills": [
+    {
+      "item": "必备技能：知识库",
+      "type": "missing_skill",
+      "deduct": 4,
+      "jd_evidence": "知识库",
+      "resume_evidence": "简历未提及",
+      "severity": "high"
+    },
+    {
+      "item": "必备技能：工作流",
+      "type": "missing_skill",
+      "deduct": 4,
+      "jd_evidence": "工作流",
+      "resume_evidence": "简历未提及",
+      "severity": "high"
+    },
+    {
+      "item": "必备技能：AI编程工具",
+      "type": "missing_skill",
+      "deduct": 3,
+      "jd_evidence": "AI编程工具",
+      "resume_evidence": "简历未提及",
+      "severity": "high"
+    }
+  ],
+  "part": "tech",
+  "category": "tech_gap",
+  "basis": "知识库",
+  "basis_source": "profile",
+  "difficulty": 2,
+  "focus": "缺口技能的迁移与补齐思路",
+  "flag": "依据来自岗位画像（推测），非真实 JD",
+  "anchor": {
+    "skill": "知识库",
+    "profile_items": [
+      "知识库"
+    ],
+    "missing_skill": true,
+    "basis_fallback": "tech_gap 使用池内非空原句",
+    "original_flag": "简历未提及，考察迁移能力"
+  },
+  "traceable": true,
+  "basis_sources": {
+    "resume": 13,
+    "jd": 0,
+    "profile": 3
+  },
+  "profile_slots": [
+    {
+      "part": "tech",
+      "category": "tech_gap",
+      "basis": "知识库",
+      "basis_source": "profile",
+      "difficulty": 2,
+      "focus": "缺口技能的迁移与补齐思路",
+      "flag": "依据来自岗位画像（推测），非真实 JD",
+      "anchor": {
+        "skill": "知识库",
+        "profile_items": [
+          "知识库"
+        ],
+        "missing_skill": true,
+        "basis_fallback": "tech_gap 使用池内非空原句",
+        "original_flag": "简历未提及，考察迁移能力"
+      },
+      "traceable": true
+    },
+    {
+      "part": "scenario",
+      "category": "scenario_design",
+      "basis": "设计企业知识库检索与评测方案",
+      "basis_source": "profile",
+      "difficulty": 2,
+      "focus": "业务需求拆解与最小交付方案",
+      "flag": "依据来自岗位画像（推测），非真实 JD",
+      "anchor": {
+        "responsibility": "设计企业知识库检索与评测方案",
+        "cos": 0.42
+      },
+      "traceable": true
+    },
+    {
+      "part": "scenario",
+      "category": "scenario_risk",
+      "basis": "Agent",
+      "basis_source": "profile",
+      "difficulty": 2,
+      "focus": "客户现场能力缺口与风险沟通",
+      "flag": "依据来自岗位画像（推测），非真实 JD",
+      "anchor": {
+        "risk_type": "missing_skill",
+        "basis_fallback": "scenario_risk 使用池内最长技术原句"
+      },
+      "traceable": true
+    }
+  ]
+}
