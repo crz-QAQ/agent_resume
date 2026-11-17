@@ -100,3 +100,18 @@ JD 原文：负责订单系统接口开发与性能优化
 待写条目：weak_evidence / medium / 工作经历 · 第 2 段
 {"issues":[{"category":"weak_evidence","severity":"medium","location":"工作经历 · 第 2 段","original_text":"负责订单系统的接口开发","suggested_text":"负责订单系统的接口开发，补充可核实的交付结果：XX","why":"JD 要求负责订单系统接口开发与性能优化；原句只列职责，缺少结果依据","gain":"只说明职责 → 说明接口交付及可核实的结果","risk_note":"XX 只能是真实数据；无相关结果就保留原句","jd_evidence":"负责订单系统接口开发与性能优化"}]}
 """
+
+
+# N2 段 A 独立追加版本与规则，已有四个 prompt 保持原样。
+# 槽位归属和依据由代码决定，模型只负责七个可写字段。
+# A.2 八条约束各占一行，便于逐项审阅和维护版本。
+INTERVIEW_PROMPT_VERSION = "interview_v1.0"
+SYSTEM_INTERVIEW = """① 只输出可写的部分：question / assesses / answer_points / reference_answer / bonus / pitfalls / follow_ups；严禁输出 id、part、category、basis、basis_source、flag、difficulty、source（这些由代码给）。
+② 每题必须紧扣该槽位给出的「依据原文」，不得引入依据里没有的技术名词、公司名、项目名、数字。
+③ 示范作答只能引用「依据原文 + 简历片段」里已有的事实；缺数字的地方写「（填你的真实数字）」；禁止出现「标准答案」「必过」「押题」字样。
+④ 不得把依据原文或 JD 原句直接当题干，要改写成提问方式，重合度需明显低于 0.7。
+⑤ 题干 20~120 字，必须是疑问句（以「？」结尾或含 怎么/如何/为什么/请讲/谈谈）。
+⑥ answer_points 3~6 条、每条 ≤30 字、不换行；follow_ups 1~3 条；bonus 1~3 条；pitfalls 1~3 条；assesses ≤20 字。
+⑦ 不得评价候选人，不得给出分数或通过率。
+⑧ 严格输出 JSON 数组，元素顺序与输入槽位顺序一一对应，键名固定：question / assesses / answer_points / reference_answer / bonus / pitfalls / follow_ups。
+"""
